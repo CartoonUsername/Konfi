@@ -1,0 +1,59 @@
+{%- comment -%}
+  Foto-Modus: EIN echtes, neutrales Foto des Fensterrahmens + Plissees (z.B. in
+  einer hellen/mittleren Stoffvariante fotografiert) bleibt die feste Bildgrundlage.
+  Stofffarbe/-textur, Schiene und Klemmträger werden per CSS mix-blend-mode:multiply
+  softwareseitig darübergelegt — echte Falten, Lichtreflexe und Schatten aus dem Foto
+  bleiben dabei erhalten, nur Farbe/Muster ändern sich.
+
+  Wird nur gerendert, wenn im Theme-Editor unter Section-Settings ein "frame_photo"
+  hochgeladen wurde (siehe sections/plissee-configurator.liquid). Ohne Foto greift
+  automatisch der Fallback auf plissee-blind-svg.liquid.
+
+  Die vier Positions-Settings (blind_top/left/width/height, rail_height,
+  bracket_top/left/width/height) legen in Prozent des Fotos fest, WO die
+  Einfärbe-Flächen liegen — einmalig im Theme-Editor an das konkrete Foto anpassen.
+{%- endcomment -%}
+{%- liquid
+  assign blind_top = section.settings.blind_top | default: 8
+  assign blind_left = section.settings.blind_left | default: 26
+  assign blind_width = section.settings.blind_width | default: 62
+  assign blind_height = section.settings.blind_height | default: 84
+  assign rail_height = section.settings.rail_height | default: 4
+  assign bracket_top = section.settings.bracket_top | default: 42
+  assign bracket_left = section.settings.bracket_left | default: 18
+  assign bracket_width = section.settings.bracket_width | default: 7
+  assign bracket_height = section.settings.bracket_height | default: 14
+-%}
+<div class="pc-photo-stage" data-blind-visual data-photo-stage>
+  <img
+    class="pc-photo-base"
+    src="{{ section.settings.frame_photo | image_url: width: 1200 }}"
+    alt="{{ section.settings.frame_photo.alt | default: 'Plissee im Fensterrahmen' }}"
+    loading="lazy"
+    width="{{ section.settings.frame_photo.width }}"
+    height="{{ section.settings.frame_photo.height }}"
+  >
+
+  <div
+    class="pc-photo-fabric-overlay"
+    data-photo-fabric
+    style="top:{{ blind_top }}%; left:{{ blind_left }}%; width:{{ blind_width }}%; height:{{ blind_height }}%;"
+  ></div>
+
+  <div
+    class="pc-photo-rail-overlay"
+    data-photo-rail
+    style="top:calc({{ blind_top }}% - {{ rail_height }}%); left:{{ blind_left }}%; width:{{ blind_width }}%; height:{{ rail_height }}%;"
+  ></div>
+  <div
+    class="pc-photo-rail-overlay"
+    data-photo-rail
+    style="top:calc({{ blind_top }}% + {{ blind_height }}%); left:{{ blind_left }}%; width:{{ blind_width }}%; height:{{ rail_height }}%;"
+  ></div>
+
+  <div
+    class="pc-photo-bracket-overlay"
+    data-photo-bracket
+    style="top:{{ bracket_top }}%; left:{{ bracket_left }}%; width:{{ bracket_width }}%; height:{{ bracket_height }}%;"
+  ></div>
+</div>

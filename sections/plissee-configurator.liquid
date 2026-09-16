@@ -1,0 +1,516 @@
+{{ 'plissee-configurator.css' | asset_url | stylesheet_tag }}
+
+{%- liquid
+  assign rail_blocks = section.blocks | where: 'type', 'rail'
+  assign bracket_blocks = section.blocks | where: 'type', 'bracket'
+  assign fabric_blocks = section.blocks | where: 'type', 'fabric'
+
+  assign current_product = product
+  assign variant = current_product.selected_or_first_available_variant
+-%}
+
+<div
+  class="pc-root"
+  data-pc-root
+  data-section-id="{{ section.id }}"
+>
+  {%- comment -%} 1. Breadcrumb {%- endcomment -%}
+  <nav class="pc-breadcrumb" aria-label="Breadcrumb">
+    <a href="{{ routes.root_url }}">Startseite</a>
+    <span class="pc-breadcrumb__sep">/</span>
+    {%- if collection -%}
+      <a href="{{ collection.url }}">{{ collection.title }}</a>
+    {%- else -%}
+      <a href="{{ section.settings.breadcrumb_collection_url | default: routes.all_products_collection_url }}">
+        {{ section.settings.breadcrumb_collection_title | default: 'Plissees' }}
+      </a>
+    {%- endif -%}
+    <span class="pc-breadcrumb__sep">/</span>
+    <span class="pc-breadcrumb__current">{{ current_product.title | default: 'Plissee' }}</span>
+  </nav>
+
+  <header class="pc-header">
+    <h1>{{ section.settings.heading | default: 'Konfigurieren Sie Ihr Plissee' }}</h1>
+    {%- if section.settings.subheading != blank -%}
+      <p>{{ section.settings.subheading }}</p>
+    {%- endif -%}
+  </header>
+
+  <div class="pc-layout">
+    {%- comment -%} 2. Vorschau-Bereich {%- endcomment -%}
+    <div class="pc-preview">
+      <div class="pc-preview__toolbar" role="group" aria-label="Ansicht wechseln">
+        <button type="button" class="pc-icon-btn" data-view-single aria-pressed="true" aria-label="Einzelansicht">
+          <svg viewBox="0 0 16 16" fill="none"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.4"/></svg>
+        </button>
+        <button type="button" class="pc-icon-btn" data-view-grid aria-pressed="false" aria-label="Rasteransicht">
+          <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="2.4" rx="1" fill="currentColor"/><rect x="2" y="6.8" width="12" height="2.4" rx="1" fill="currentColor"/><rect x="2" y="10.6" width="12" height="2.4" rx="1" fill="currentColor"/></svg>
+        </button>
+        <button type="button" class="pc-icon-btn" data-zoom-btn aria-label="Vorschau vergrößern">
+          <svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+
+      <div class="pc-preview__stage" data-stage-single>
+        <span class="pc-preview__select-hint" data-preview-select-hint>Auswählen</span>
+        {%- if section.settings.frame_photo -%}
+          {%- render 'plissee-blind-photo' -%}
+        {%- else -%}
+          {%- render 'plissee-blind-svg', instance_id: 'main' -%}
+        {%- endif -%}
+      </div>
+
+      <div class="pc-preview__grid" data-stage-grid hidden>
+        <div class="pc-blind-thumb">
+          {%- if section.settings.frame_photo -%}
+            {%- render 'plissee-blind-photo' -%}
+          {%- else -%}
+            {%- render 'plissee-blind-svg', instance_id: 'grid-1' -%}
+          {%- endif -%}
+        </div>
+        <div class="pc-blind-thumb" style="overflow:hidden;">
+          <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;transform: scale(1.7) translateY(-22%);">
+            {%- if section.settings.frame_photo -%}
+              {%- render 'plissee-blind-photo' -%}
+            {%- else -%}
+              {%- render 'plissee-blind-svg', instance_id: 'grid-2' -%}
+            {%- endif -%}
+          </div>
+        </div>
+        <div class="pc-blind-thumb" style="overflow:hidden;">
+          <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;transform: scale(2.1) translateY(6%);">
+            {%- if section.settings.frame_photo -%}
+              {%- render 'plissee-blind-photo' -%}
+            {%- else -%}
+              {%- render 'plissee-blind-svg', instance_id: 'grid-3' -%}
+            {%- endif -%}
+          </div>
+        </div>
+      </div>
+
+      <div class="pc-preview__meta">
+        <span>Breite: <strong data-meta-width>–</strong></span>
+        <span>Höhe: <strong data-meta-height>–</strong></span>
+        <span>Stoff: <strong data-meta-fabric>–</strong></span>
+      </div>
+
+      {%- comment -%} Zwischenspeicher für mehrere Plissees/Zimmer in einer Bestellung {%- endcomment -%}
+      <div class="pc-saved-configs">
+        <div class="pc-saved-configs__header">
+          <div>
+            <h3 class="pc-saved-configs__title">Meine Konfigurationen</h3>
+            <p class="pc-saved-configs__hint">Mehrere Plissees für verschiedene Fenster/Zimmer sammeln und gemeinsam bestellen.</p>
+          </div>
+          <button type="button" class="pc-saved-add" data-save-config>Merken</button>
+        </div>
+        <ul class="pc-saved-list" data-saved-list></ul>
+        <p class="pc-saved-empty" data-saved-empty>Noch keine gemerkten Konfigurationen — mit „Merken“ sammelst du weitere Plissees, bevor du gemeinsam bestellst.</p>
+        <div class="pc-saved-summary" data-saved-summary hidden>
+          <span><strong data-saved-count>0</strong> gemerkt</span>
+          <span>Zwischensumme: <strong data-saved-total>0,00 €</strong></span>
+        </div>
+      </div>
+    </div>
+
+    {%- comment -%} Konfigurationsspalte {%- endcomment -%}
+    <div class="pc-config">
+      <p class="pc-card__hint" style="margin:-4px 0 -6px;">
+        Vorgeschlagene Plisseekonfiguration — durch Anklicken der folgenden Felder ändern
+      </p>
+
+      {%- comment -%} 1. Maße {%- endcomment -%}
+      <section class="pc-card">
+        <h2 class="pc-card__title">Maße</h2>
+        <p class="pc-card__hint">Alle Maße in Zentimetern, auf 0,1 cm genau.</p>
+        <div class="pc-dims">
+          <div class="pc-field">
+            <label for="pc-width-{{ section.id }}">Breite (cm)</label>
+            <div class="pc-stepper">
+              <input
+                type="text"
+                inputmode="decimal"
+                id="pc-width-{{ section.id }}"
+                data-width-input
+                value="{{ section.settings.default_width }}"
+                aria-describedby="pc-width-range-{{ section.id }}"
+              >
+              <span class="pc-stepper__col">
+                <button type="button" class="pc-stepper__btn" data-width-inc aria-label="Breite erhöhen">
+                  <svg viewBox="0 0 10 10" fill="none"><path d="M1 6l4-4 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <button type="button" class="pc-stepper__btn" data-width-dec aria-label="Breite verringern">
+                  <svg viewBox="0 0 10 10" fill="none"><path d="M1 4l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </span>
+            </div>
+            <div class="pc-field__range" id="pc-width-range-{{ section.id }}">
+              {{ section.settings.min_width }}–{{ section.settings.max_width }} cm
+            </div>
+          </div>
+
+          <div class="pc-field">
+            <label for="pc-height-{{ section.id }}">Höhe (cm)</label>
+            <div class="pc-stepper">
+              <input
+                type="text"
+                inputmode="decimal"
+                id="pc-height-{{ section.id }}"
+                data-height-input
+                value="{{ section.settings.default_height }}"
+                aria-describedby="pc-height-range-{{ section.id }}"
+              >
+              <span class="pc-stepper__col">
+                <button type="button" class="pc-stepper__btn" data-height-inc aria-label="Höhe erhöhen">
+                  <svg viewBox="0 0 10 10" fill="none"><path d="M1 6l4-4 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <button type="button" class="pc-stepper__btn" data-height-dec aria-label="Höhe verringern">
+                  <svg viewBox="0 0 10 10" fill="none"><path d="M1 4l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </span>
+            </div>
+            <div class="pc-field__range" id="pc-height-range-{{ section.id }}">
+              {{ section.settings.min_height }}–{{ section.settings.max_height }} cm
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {%- comment -%} 3. Schiene / Klemmträger {%- endcomment -%}
+      <section class="pc-card">
+        <h2 class="pc-card__title">Schiene</h2>
+        <p class="pc-card__hint">Farbe der oberen Führungsschiene.</p>
+        <div class="pc-tilegroup" data-rail-group role="group" aria-label="Schienenfarbe"></div>
+      </section>
+
+      <section class="pc-card">
+        <h2 class="pc-card__title">Klemmträger</h2>
+        <p class="pc-card__hint">Montage ohne Bohren.</p>
+        <div class="pc-tilegroup" data-bracket-group role="group" aria-label="Klemmträgerfarbe"></div>
+      </section>
+
+      {%- comment -%} 4 + 5. Stoffauswahl {%- endcomment -%}
+      <section class="pc-card">
+        <h2 class="pc-card__title">Stoff auswählen</h2>
+        <p class="pc-card__hint">Nach Kollektion, Farbton oder Verdunkelungsgrad filtern.</p>
+
+        <div class="pc-filters">
+          <select class="pc-select" data-filter-collection aria-label="Kollektion"></select>
+          <select class="pc-select" data-filter-color aria-label="Farbton"></select>
+          <select class="pc-select" data-filter-opacity aria-label="Verdunkelung"></select>
+        </div>
+
+        <div class="pc-fabric-gallery" data-fabric-gallery role="listbox" aria-label="Stoffauswahl"></div>
+        <p class="pc-fabric-empty" data-fabric-empty>Keine Stoffe für diese Filterkombination gefunden.</p>
+
+        <div class="pc-selected-fabric">
+          <span class="pc-selected-fabric__swatch" data-selected-fabric-swatch></span>
+          <span>
+            <span class="pc-selected-fabric__name" data-selected-fabric-name>–</span><br>
+            <span class="pc-selected-fabric__sub" data-selected-fabric-sub></span>
+          </span>
+        </div>
+      </section>
+
+      {%- comment -%} Optionaler Hinweistext (Raumbezeichnung o.ä.) {%- endcomment -%}
+      <section class="pc-card">
+        <h2 class="pc-card__title">Hinweis <span style="font-weight:500;color:var(--pc-ink-muted);">(optional)</span></h2>
+        <p class="pc-card__hint">Zur eigenen Zuordnung, z. B. Zimmer- oder Fensterbezeichnung.</p>
+        <input type="text" class="pc-note-input" data-note-input maxlength="120" placeholder="z. B. Zimmer 1">
+      </section>
+
+      {%- comment -%} 6. Preis, Menge, Warenkorb {%- endcomment -%}
+      <section class="pc-card pc-buy">
+        <div class="pc-price-row">
+          <div>
+            <span class="pc-price" data-price>0,00 €</span>
+            <span class="pc-price__unit">/ Stück</span>
+          </div>
+          <div class="pc-price__total">
+            <span data-price-total-label>Gesamt</span>: <strong data-price-total>0,00 €</strong>
+          </div>
+        </div>
+
+        <form
+          method="post"
+          action="/cart/add"
+          enctype="multipart/form-data"
+          data-cart-form
+        >
+          <input type="hidden" name="id" value="{{ variant.id }}">
+          <div data-cart-properties></div>
+          <div class="pc-buy-row">
+            <div class="pc-qty">
+              <button type="button" data-qty-dec aria-label="Menge verringern">–</button>
+              <input type="number" name="quantity" min="1" max="99" value="1" data-qty-input aria-label="Menge">
+              <button type="button" data-qty-inc aria-label="Menge erhöhen">+</button>
+            </div>
+            <button type="submit" class="pc-add-to-cart" data-add-to-cart>
+              <svg viewBox="0 0 20 20" fill="none"><path d="M2 3h2l1.6 9.6a1.6 1.6 0 001.6 1.4h7a1.6 1.6 0 001.6-1.3L17 6H5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="17" r="1.2" fill="currentColor"/><circle cx="15" cy="17" r="1.2" fill="currentColor"/></svg>
+              In den Warenkorb
+            </button>
+          </div>
+        </form>
+
+        <p class="pc-buy-note">Maßanfertigung — Lieferzeit ca. 10–14 Werktage.</p>
+      </section>
+    </div>
+  </div>
+
+  <div class="pc-toast" data-toast role="status" aria-live="polite"></div>
+
+  <div class="pc-lightbox" data-lightbox aria-hidden="true">
+    <div class="pc-lightbox__panel" role="dialog" aria-modal="true" aria-label="Vergrößerte Ansicht">
+      <button type="button" class="pc-lightbox__close" data-lightbox-close aria-label="Schließen">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+      <div class="pc-lightbox__stage" data-lightbox-stage></div>
+    </div>
+  </div>
+
+  {%- comment -%} Konfigurationsdaten als JSON — einzige Schnittstelle zwischen Liquid/Theme-Editor und der JS-State-Logik. {%- endcomment -%}
+  <script type="application/json" data-pc-config>
+    {
+      "currency": {{ section.settings.currency | default: '€' | json }},
+      "baseFee": {{ section.settings.base_fee | default: 12.22 }},
+      "pricePerMeterWidth": {{ section.settings.price_per_meter_width | default: 25.39 }},
+      "pricePerMeterHeight": {{ section.settings.price_per_meter_height | default: 10.5 }},
+      "minPrice": {{ section.settings.min_price | default: 20 }},
+      "minWidth": {{ section.settings.min_width | default: 30 }},
+      "maxWidth": {{ section.settings.max_width | default: 150 }},
+      "minHeight": {{ section.settings.min_height | default: 30 }},
+      "maxHeight": {{ section.settings.max_height | default: 240 }},
+      "defaultWidth": {{ section.settings.default_width | default: 100 }},
+      "defaultHeight": {{ section.settings.default_height | default: 120 }},
+      "step": {{ section.settings.step | default: 1 }},
+      "rails": [
+        {%- for block in rail_blocks -%}
+          {
+            "id": {{ block.id | json }},
+            "name": {{ block.settings.name | json }},
+            "color": {{ block.settings.color | default: '#f3f3ee' | json }},
+            "image": {% if block.settings.image %}{{ block.settings.image | image_url: width: 200 | json }}{% else %}null{% endif %},
+            "surcharge": {{ block.settings.surcharge | default: 0 }}
+          }{%- unless forloop.last -%},{%- endunless -%}
+        {%- endfor -%}
+      ],
+      "brackets": [
+        {%- for block in bracket_blocks -%}
+          {
+            "id": {{ block.id | json }},
+            "name": {{ block.settings.name | json }},
+            "color": {{ block.settings.color | default: '#f3f3ee' | json }},
+            "image": {% if block.settings.image %}{{ block.settings.image | image_url: width: 200 | json }}{% else %}null{% endif %},
+            "surcharge": {{ block.settings.surcharge | default: 0 }}
+          }{%- unless forloop.last -%},{%- endunless -%}
+        {%- endfor -%}
+      ],
+      "fabrics": [
+        {%- for block in fabric_blocks -%}
+          {
+            "id": {{ block.id | json }},
+            "name": {{ block.settings.name | json }},
+            "collection": {{ block.settings.collection | json }},
+            "colorGroup": {{ block.settings.color_group | json }},
+            "opacity": {{ block.settings.opacity | default: 100 }},
+            "color": {{ block.settings.color | default: '#dedcd0' | json }},
+            "material": {{ block.settings.material | default: 'Polyester' | json }},
+            "image": {% if block.settings.image %}{{ block.settings.image | image_url: width: 600 | json }}{% else %}null{% endif %},
+            "surcharge": {{ block.settings.surcharge | default: 0 }}
+          }{%- unless forloop.last -%},{%- endunless -%}
+        {%- endfor -%}
+      ]
+    }
+  </script>
+</div>
+
+<script src="{{ 'plissee-configurator.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "Plissee-Konfigurator",
+  "tag": "section",
+  "class": "shopify-section--plissee-configurator",
+  "settings": [
+    { "type": "text", "id": "heading", "label": "Überschrift", "default": "Konfigurieren Sie Ihr Plissee" },
+    { "type": "text", "id": "subheading", "label": "Unterzeile" },
+    { "type": "text", "id": "breadcrumb_collection_title", "label": "Breadcrumb-Kategorie (Fallback)", "default": "Plissees" },
+    { "type": "url", "id": "breadcrumb_collection_url", "label": "Breadcrumb-Kategorie-Link (Fallback)" },
+    {
+      "type": "header",
+      "content": "Preis"
+    },
+    { "type": "text", "id": "currency", "label": "Währungssymbol", "default": "€" },
+    {
+      "type": "paragraph",
+      "content": "Preisformel: Grundpreis + Breite(m) × Breitenrate + Höhe(m) × Höhenrate, plus feste Stoff-/Schienen-/Klemmträger-Aufpreise. Diese Grundwerte sind anhand echter Referenzpreise kalibriert."
+    },
+    { "type": "number", "id": "base_fee", "label": "Grundpreis (€)", "default": 12.22 },
+    { "type": "number", "id": "price_per_meter_width", "label": "Preis je Meter Breite (€)", "default": 25.39 },
+    { "type": "number", "id": "price_per_meter_height", "label": "Preis je Meter Höhe (€)", "default": 10.5 },
+    { "type": "number", "id": "min_price", "label": "Mindestpreis pro Stück", "default": 20 },
+    {
+      "type": "header",
+      "content": "Maße"
+    },
+    { "type": "number", "id": "min_width", "label": "Mindestbreite (cm)", "default": 30 },
+    { "type": "number", "id": "max_width", "label": "Maximalbreite (cm)", "default": 150 },
+    { "type": "number", "id": "min_height", "label": "Mindesthöhe (cm)", "default": 30 },
+    { "type": "number", "id": "max_height", "label": "Maximalhöhe (cm)", "default": 240 },
+    { "type": "number", "id": "default_width", "label": "Standardbreite (cm)", "default": 100 },
+    { "type": "number", "id": "default_height", "label": "Standardhöhe (cm)", "default": 120 },
+    { "type": "number", "id": "step", "label": "Schrittweite Stepper (cm)", "default": 1 },
+    {
+      "type": "header",
+      "content": "Vorschau-Foto (optional)"
+    },
+    {
+      "type": "paragraph",
+      "content": "Ohne Foto wird automatisch die Illustration verwendet. Mit Foto: ein neutrales Produktfoto hochladen, dann die Prozent-Werte unten so anpassen, dass sie exakt auf die Stofffläche/Schiene/Klemmträger im Foto treffen (Werte = % von Fotobreite/-höhe, vom oberen linken Bildrand aus)."
+    },
+    { "type": "image_picker", "id": "frame_photo", "label": "Fensterrahmen-Foto" },
+    { "type": "number", "id": "blind_top", "label": "Stofffläche – Abstand oben (%)", "default": 8 },
+    { "type": "number", "id": "blind_left", "label": "Stofffläche – Abstand links (%)", "default": 26 },
+    { "type": "number", "id": "blind_width", "label": "Stofffläche – Breite (%)", "default": 62 },
+    { "type": "number", "id": "blind_height", "label": "Stofffläche – Höhe (%)", "default": 84 },
+    { "type": "number", "id": "rail_height", "label": "Schienen-Höhe (%)", "default": 4 },
+    { "type": "number", "id": "bracket_top", "label": "Klemmträger – Abstand oben (%)", "default": 42 },
+    { "type": "number", "id": "bracket_left", "label": "Klemmträger – Abstand links (%)", "default": 18 },
+    { "type": "number", "id": "bracket_width", "label": "Klemmträger – Breite (%)", "default": 7 },
+    { "type": "number", "id": "bracket_height", "label": "Klemmträger – Höhe (%)", "default": 14 }
+  ],
+  "blocks": [
+    {
+      "type": "rail",
+      "name": "Schienenfarbe",
+      "settings": [
+        { "type": "text", "id": "name", "label": "Name", "default": "Weiß" },
+        { "type": "color", "id": "color", "label": "Farbe", "default": "#f3f3ee" },
+        { "type": "image_picker", "id": "image", "label": "Foto (optional, überschreibt Farbe im Foto-Modus)" },
+        { "type": "number", "id": "surcharge", "label": "Aufpreis", "default": 0 }
+      ]
+    },
+    {
+      "type": "bracket",
+      "name": "Klemmträgerfarbe",
+      "settings": [
+        { "type": "text", "id": "name", "label": "Name", "default": "Weiß" },
+        { "type": "color", "id": "color", "label": "Farbe", "default": "#f3f3ee" },
+        { "type": "image_picker", "id": "image", "label": "Foto (optional, überschreibt Farbe im Foto-Modus)" },
+        { "type": "number", "id": "surcharge", "label": "Aufpreis", "default": 0 }
+      ]
+    },
+    {
+      "type": "fabric",
+      "name": "Stoff",
+      "settings": [
+        { "type": "text", "id": "name", "label": "Name", "default": "10116" },
+        { "type": "text", "id": "collection", "label": "Kollektion", "default": "WABEN" },
+        { "type": "text", "id": "color_group", "label": "Farbton", "default": "Weiß - Ecru" },
+        { "type": "text", "id": "material", "label": "Material", "default": "Polyester" },
+        {
+          "type": "select",
+          "id": "opacity",
+          "label": "Verdunkelung",
+          "default": "50",
+          "options": [
+            { "value": "100", "label": "100%" },
+            { "value": "75", "label": "75%" },
+            { "value": "50", "label": "50%" },
+            { "value": "25", "label": "25%" }
+          ]
+        },
+        { "type": "color", "id": "color", "label": "Farbe (Muster, immer genutzt als Fallback + Galerie-Kachel)", "default": "#e7e2d3" },
+        { "type": "image_picker", "id": "image", "label": "Stoff-Textur-Foto (optional, Nahaufnahme des Gewebes)" },
+        { "type": "number", "id": "surcharge", "label": "Aufpreis (€, fest — nicht Faktor)", "default": 0 }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Plissee-Konfigurator",
+      "blocks": [
+        { "type": "rail", "settings": { "name": "Anthrazit", "color": "#2b2a28" } },
+        { "type": "rail", "settings": { "name": "Weiß", "color": "#f5f4ef" } },
+        { "type": "rail", "settings": { "name": "Silber", "color": "#c7c9c6" } },
+        { "type": "rail", "settings": { "name": "Braun", "color": "#6b4a34" } },
+        { "type": "bracket", "settings": { "name": "Anthrazit", "color": "#2b2a28" } },
+        { "type": "bracket", "settings": { "name": "Weiß", "color": "#f5f4ef" } },
+        { "type": "bracket", "settings": { "name": "Silber", "color": "#c7c9c6" } },
+        { "type": "fabric", "settings": { "name": "10101", "collection": "WABEN", "color_group": "Weiß - Ecru", "opacity": "25", "color": "#e8e2d0", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "10102", "collection": "WABEN", "color_group": "Grau - Schwarz", "opacity": "50", "color": "#9a9a94", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "10103", "collection": "WABEN", "color_group": "Grün", "opacity": "75", "color": "#8fae52", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "10104", "collection": "WABEN", "color_group": "Rosa - Violett", "opacity": "100", "color": "#5a2a52", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "10105", "collection": "WABEN", "color_group": "Braun - Beige", "opacity": "50", "color": "#c9a962", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "10106", "collection": "WABEN", "color_group": "Braun - Beige", "opacity": "50", "color": "#c4a05f", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "10108", "collection": "WABEN", "color_group": "Gelb - Orange", "opacity": "75", "color": "#c96a3a", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "10109", "collection": "WABEN", "color_group": "Braun - Beige", "opacity": "100", "color": "#4a3428", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "10111", "collection": "WABEN", "color_group": "Weiß - Ecru", "opacity": "25", "color": "#c8c8c4", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "10112", "collection": "WABEN", "color_group": "Grau - Schwarz", "opacity": "100", "color": "#4a4a48", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "10113", "collection": "WABEN", "color_group": "Grau - Schwarz", "opacity": "100", "color": "#1a1a22", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "10116", "collection": "WABEN", "color_group": "Weiß - Ecru", "opacity": "50", "color": "#d4d2ca", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "10119", "collection": "WABEN", "color_group": "Himmelblau - Marine", "opacity": "100", "color": "#1a6b64", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "10123", "collection": "WABEN", "color_group": "Burgunder - Rot", "opacity": "100", "color": "#4a1a28", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "10124", "collection": "WABEN", "color_group": "Burgunder - Rot", "opacity": "75", "color": "#b3283a", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "10125", "collection": "WABEN", "color_group": "Rosa - Violett", "opacity": "75", "color": "#b3226b", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "10126", "collection": "WABEN", "color_group": "Himmelblau - Marine", "opacity": "75", "color": "#2a6bb3", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "10129", "collection": "WABEN", "color_group": "Grün", "opacity": "100", "color": "#1a4a2a", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "20510", "collection": "CASTELLO", "color_group": "Himmelblau - Marine", "opacity": "25", "color": "#c4ccd4", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "20550", "collection": "CASTELLO", "color_group": "Grau - Schwarz", "opacity": "50", "color": "#8ea4a0", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "20570", "collection": "CASTELLO", "color_group": "Rosa - Violett", "opacity": "50", "color": "#c99a90", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "20580", "collection": "CASTELLO", "color_group": "Grün", "opacity": "50", "color": "#8ea87d", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "20600", "collection": "CASTELLO", "color_group": "Himmelblau - Marine", "opacity": "100", "color": "#1e5670", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "20610", "collection": "CASTELLO", "color_group": "Grün", "opacity": "25", "color": "#a8c496", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "20620", "collection": "CASTELLO", "color_group": "Braun - Beige", "opacity": "50", "color": "#a8a068", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "20630", "collection": "CASTELLO", "color_group": "Braun - Beige", "opacity": "75", "color": "#a8825a", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "20660", "collection": "CASTELLO", "color_group": "Burgunder - Rot", "opacity": "100", "color": "#4a2028", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "20680", "collection": "CASTELLO", "color_group": "Grau - Schwarz", "opacity": "100", "color": "#3a3a3e", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "20690", "collection": "CASTELLO", "color_group": "Grün", "opacity": "75", "color": "#7a9450", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "20703", "collection": "CASTELLO", "color_group": "Himmelblau - Marine", "opacity": "100", "color": "#2a4a70", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "20780", "collection": "CASTELLO", "color_group": "Grau - Schwarz", "opacity": "100", "color": "#242426", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "20203", "collection": "CASTELLO", "color_group": "Grün", "opacity": "50", "color": "#8ba85a", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "20224", "collection": "CASTELLO", "color_group": "Burgunder - Rot", "opacity": "100", "color": "#8a3028", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "20225", "collection": "CASTELLO", "color_group": "Gelb - Orange", "opacity": "75", "color": "#c9803a", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "20900", "collection": "CASTELLO", "color_group": "Himmelblau - Marine", "opacity": "75", "color": "#2a7ab3", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "30N1", "collection": "HERBA", "color_group": "Grau - Schwarz", "opacity": "50", "color": "#5a5a5e", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "30N2", "collection": "HERBA", "color_group": "Grau - Schwarz", "opacity": "50", "color": "#7a7e7a", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "30N3", "collection": "HERBA", "color_group": "Rosa - Violett", "opacity": "25", "color": "#c4c4cc", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "30N4", "collection": "HERBA", "color_group": "Grau - Schwarz", "opacity": "100", "color": "#1a1a1c", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "30N5", "collection": "HERBA", "color_group": "Braun - Beige", "opacity": "50", "color": "#8a8a68", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "50300", "collection": "DIVINO", "color_group": "Weiß - Ecru", "opacity": "25", "color": "#e0d8b8", "surcharge": 2.38 } },
+        { "type": "fabric", "settings": { "name": "50301", "collection": "DIVINO", "color_group": "Braun - Beige", "opacity": "25", "color": "#d8cca8", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "50302", "collection": "DIVINO", "color_group": "Braun - Beige", "opacity": "50", "color": "#c4a050", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "50303", "collection": "DIVINO", "color_group": "Grau - Schwarz", "opacity": "75", "color": "#6a645c", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "50304", "collection": "DIVINO", "color_group": "Himmelblau - Marine", "opacity": "25", "color": "#c8ccd0", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "50305", "collection": "DIVINO", "color_group": "Grau - Schwarz", "opacity": "25", "color": "#b8bcc0", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "50306", "collection": "DIVINO", "color_group": "Himmelblau - Marine", "opacity": "50", "color": "#8a949c", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "50307", "collection": "DIVINO", "color_group": "Grau - Schwarz", "opacity": "50", "color": "#787c7e", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "50308", "collection": "DIVINO", "color_group": "Grau - Schwarz", "opacity": "75", "color": "#5a5e60", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "50309", "collection": "DIVINO", "color_group": "Grau - Schwarz", "opacity": "100", "color": "#26262a", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "70040", "collection": "VERO", "color_group": "Himmelblau - Marine", "opacity": "25", "color": "#a8b4bc", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "70052", "collection": "VERO", "color_group": "Grün", "opacity": "50", "color": "#9cc466", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "70056", "collection": "VERO", "color_group": "Rosa - Violett", "opacity": "100", "color": "#6a3a52", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "70061", "collection": "VERO", "color_group": "Weiß - Ecru", "opacity": "25", "color": "#e4e0d0", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "70063", "collection": "VERO", "color_group": "Braun - Beige", "opacity": "25", "color": "#d8d0b8", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "70066", "collection": "VERO", "color_group": "Himmelblau - Marine", "opacity": "100", "color": "#20222a", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "70067", "collection": "VERO", "color_group": "Gelb - Orange", "opacity": "75", "color": "#d4c840", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "70069", "collection": "VERO", "color_group": "Grün", "opacity": "50", "color": "#5aa898", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "70070", "collection": "VERO", "color_group": "Rosa - Violett", "opacity": "50", "color": "#8a90c4", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "70072", "collection": "VERO", "color_group": "Grau - Schwarz", "opacity": "50", "color": "#9a9c98", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "70073", "collection": "VERO", "color_group": "Rosa - Violett", "opacity": "25", "color": "#e0c4d0", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "70074", "collection": "VERO", "color_group": "Gelb - Orange", "opacity": "50", "color": "#e87858", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "70077", "collection": "VERO", "color_group": "Rosa - Violett", "opacity": "75", "color": "#8a4a8a", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "40451", "collection": "LARGO", "color_group": "Weiß - Ecru", "opacity": "25", "color": "#e4e0c4", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "40452", "collection": "LARGO", "color_group": "Weiß - Ecru", "opacity": "25", "color": "#ece8d4", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "40453", "collection": "LARGO", "color_group": "Braun - Beige", "opacity": "25", "color": "#c4b898", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "40454", "collection": "LARGO", "color_group": "Braun - Beige", "opacity": "50", "color": "#a89478", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "40455", "collection": "LARGO", "color_group": "Grau - Schwarz", "opacity": "25", "color": "#c4c4c0", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "40456", "collection": "LARGO", "color_group": "Grau - Schwarz", "opacity": "50", "color": "#9c9c98", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "40457", "collection": "LARGO", "color_group": "Grau - Schwarz", "opacity": "25", "color": "#b8bcc0", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "40458", "collection": "LARGO", "color_group": "Grau - Schwarz", "opacity": "50", "color": "#8a8e92", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "40459", "collection": "LARGO", "color_group": "Grau - Schwarz", "opacity": "100", "color": "#484a4e", "surcharge": 0 } },
+        { "type": "fabric", "settings": { "name": "40612", "collection": "DIVINO", "color_group": "Himmelblau - Marine", "opacity": "75", "color": "#2f6fb0", "surcharge": 48.35 } }
+      ]
+    }
+  ]
+}
+{% endschema %}
