@@ -367,6 +367,7 @@
         viewSingleBtn: q("[data-view-single]"),
         viewGridBtn: q("[data-view-grid]"),
         zoomBtn: q("[data-zoom-btn]"),
+        shareLinkBtn: q("[data-share-link]"),
         stageSingle: q("[data-stage-single]"),
         stageGrid: q("[data-stage-grid]"),
         pleatGradients: qa("[data-pleat-gradient]"),
@@ -448,6 +449,7 @@
       els.viewSingleBtn.addEventListener("click", () => state.setView("single"));
       els.viewGridBtn.addEventListener("click", () => state.setView("grid"));
       els.zoomBtn.addEventListener("click", () => this._openLightbox({ mode: "preview" }));
+      els.shareLinkBtn.addEventListener("click", () => this._handleShareLink());
       // Jede Kachel der Rasteransicht öffnet ebenfalls die Zoom-Ansicht.
       els.stageGrid.addEventListener("click", () => this._openLightbox({ mode: "preview" }));
       // Klick auf das Vorschaubild selbst springt zur Stoffauswahl (Hover zeigt "Auswählen").
@@ -760,6 +762,7 @@
       if (els.widthRange) els.widthRange.value = state.width;
       if (els.heightRange) els.heightRange.value = state.height;
       if (document.activeElement !== els.qtyInput) els.qtyInput.value = state.quantity;
+      if (document.activeElement !== els.noteInput) els.noteInput.value = state.note;
 
       els.metaWidth.textContent = state.width.toFixed(1) + " cm";
       els.metaHeight.textContent = state.height.toFixed(1) + " cm";
@@ -955,6 +958,91 @@
       window.clearTimeout(this._toastTimer);
       this._toastTimer = window.setTimeout(() => toast.classList.remove("is-visible"), 3200);
     }
+
+    /** Baut eine URL, die die aktuell bearbeitete Konfiguration (Maße, Stoff,
+     * Schiene, Klemmträger, Menge, Hinweis) als Query-Parameter enthält, damit
+     * sie sich per Link teilen und beim Öffnen automatisch wiederherstellen
+     * lässt. Parameter sind mit der Section-ID präfixt, falls mehrere
+     * Konfiguratoren auf derselben Seite eingebunden sind. */
+    _buildShareUrl() {
+      const s = this.state;
+      const prefix = shareUrlPrefix(this.root);
+      const url = new URL(window.location.href);
+      Array.from(url.searchParams.keys()).forEach((key) => {
+        if (key.indexOf(prefix) === 0) url.searchParams.delete(key);
+      });
+      url.searchParams.set(prefix + "w", s.width);
+      url.searchParams.set(prefix + "h", s.height);
+      if (s.fabricId) url.searchParams.set(prefix + "fabric", s.fabricId);
+      if (s.railId) url.searchParams.set(prefix + "rail", s.railId);
+      if (s.bracketId) url.searchParams.set(prefix + "bracket", s.bracketId);
+      url.searchParams.set(prefix + "qty", s.quantity);
+      if (s.note.trim()) url.searchParams.set(prefix + "note", s.note.trim());
+      return url.toString();
+    }
+
+    _handleShareLink() {
+      const url = this._buildShareUrl();
+      copyToClipboard(url).then(
+        () => this._showToast("Link zur aktuellen Konfiguration kopiert."),
+        () => window.prompt("Link zur aktuellen Konfiguration:", url)
+      );
+    }
+  }
+
+  /** Präfix für die Share-Link-Query-Parameter dieser Konfigurator-Instanz. */
+  function shareUrlPrefix(root) {
+    return "pc_" + (root.dataset.sectionId || "cfg") + "_";
+  }
+
+  function copyToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise((resolve, reject) => {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      try {
+        const ok = document.execCommand("copy");
+        document.body.removeChild(textarea);
+        if (ok) resolve();
+        else reject(new Error("copy failed"));
+      } catch (err) {
+        document.body.removeChild(textarea);
+        reject(err);
+      }
+    });
+  }
+
+  /** Liest die Share-Link-Query-Parameter dieser Konfigurator-Instanz aus der
+   * aktuellen URL (falls vorhanden) und überträgt sie in den State, bevor die
+   * View erstmalig rendert — so öffnet ein geteilter Link direkt die passende
+   * Konfiguration. */
+  function applyStateFromUrl(state, root) {
+    const prefix = shareUrlPrefix(root);
+    const params = new URLSearchParams(window.location.search);
+    if (!Array.from(params.keys()).some((key) => key.indexOf(prefix) === 0)) return;
+
+    const w = params.get(prefix + "w");
+    const h = params.get(prefix + "h");
+    const fabricId = params.get(prefix + "fabric");
+    const railId = params.get(prefix + "rail");
+    const bracketId = params.get(prefix + "bracket");
+    const qty = params.get(prefix + "qty");
+    const note = params.get(prefix + "note");
+
+    if (w !== null) state.setWidth(parseFloat(w));
+    if (h !== null) state.setHeight(parseFloat(h));
+    if (fabricId) state.setFabric(fabricId);
+    if (railId) state.setRail(railId);
+    if (bracketId) state.setBracket(bracketId);
+    if (qty !== null) state.setQuantity(parseInt(qty, 10));
+    if (note !== null) state.setNote(note);
   }
 
   const ICONS = {
@@ -982,6 +1070,7 @@
     }
 
     const state = new PlisseeConfiguratorState(config);
+    applyStateFromUrl(state, root);
     const view = new PlisseeConfiguratorView(root, state);
 
     view.onAddToCart = function (currentState, form) {
