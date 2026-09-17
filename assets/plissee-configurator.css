@@ -120,6 +120,11 @@
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
+/* [hidden] gewinnt sonst nicht gegen die eigene display:inline-flex-Regel
+   oben (Autor-Styles schlagen das UA-Stylesheet unabhängig von der
+   Reihenfolge) — ohne das bliebe z. B. der "Verstellung zeigen"-Button auch
+   ohne Foto sichtbar, obwohl JS ihn bewusst per hidden-Attribut versteckt. */
+.pc-icon-btn[hidden] { display: none; }
 .pc-icon-btn:hover { background: var(--pc-surface-muted); color: var(--pc-ink); }
 .pc-icon-btn[aria-pressed="true"] { background: var(--pc-accent); color: var(--pc-accent-contrast); }
 .pc-icon-btn svg { width: 16px; height: 16px; }
@@ -132,8 +137,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px 20px;
-  cursor: pointer;
+  padding: 28px 10px 10px;
 }
 
 /* Hover-Hinweis auf dem Vorschaubild: Klick springt zur Stoffauswahl. */
@@ -183,13 +187,39 @@
 
 .pc-blind {
   width: 100%;
-  max-width: 260px;
+  max-width: 420px;
   height: auto;
   filter: drop-shadow(0 14px 18px rgba(35, 36, 31, 0.14));
 }
 
-/* Foto-Modus: echtes Foto als feste Basis, Stoff/Schiene/Klemmträger per
-   mix-blend-mode:multiply softwareseitig eingefärbt (siehe plissee-blind-photo.liquid). */
+/* Haupt-Vorschau: interaktive 3D-Live-Ansicht (siehe plissee-room-3d.js)
+   statt der früheren statischen SVG — füllt die komplette Stage-Fläche,
+   transparenter Hintergrund liegt über dem bestehenden CSS-Verlauf. */
+.pc-preview__stage3d {
+  width: 100%;
+  height: 100%;
+}
+.pc-preview__stage3d canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  cursor: grab;
+}
+.pc-preview__stage3d canvas:active { cursor: grabbing; }
+.pc-preview__stage3d.is-loading::after {
+  content: "Lädt Vorschau …";
+  display: block;
+  text-align: center;
+  padding-top: 45%;
+  font-size: 13px;
+  color: var(--pc-ink-muted);
+}
+
+/* Foto-Modus: Referenzfoto zeigt das LEERE Fensterloch (siehe
+   plissee-blind-photo.liquid) — Stoff (inkl. echter Falten-Optik per
+   CSS-Verlauf, siehe _renderPhotoOverlays), Schiene und Klemmträger malen
+   sich als eigenständige, opake Flächen darüber statt eine im Foto bereits
+   vorhandene Struktur nur einzufärben (kein mix-blend-mode mehr nötig). */
 .pc-photo-stage {
   position: relative;
   width: 100%;
@@ -204,10 +234,16 @@
 .pc-photo-rail-overlay,
 .pc-photo-bracket-overlay {
   position: absolute;
-  mix-blend-mode: multiply;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+}
+/* Fläche/Schienen bewegen sich weich, wenn "Verstellung zeigen" (siehe
+   _setupPhotoAdjustToggle) Top/Höhe ändert — der Klemmträger bleibt fix
+   an der Wand montiert und bekommt daher keine Transition. */
+.pc-photo-fabric-overlay,
+.pc-photo-rail-overlay {
+  transition: top 0.5s ease, height 0.5s ease;
 }
 
 .pc-preview__meta {
@@ -219,6 +255,30 @@
   font-size: 12.5px;
   color: var(--pc-ink-muted);
 }
+
+/* Standard-Einstieg: Konfigurator ist für Käufer eines einzelnen Plissees
+   ausgelegt. Erst dieser Button schaltet den Haus-Planer (Raumfeld, Merken,
+   Raumkarten) frei — bewusst zurückhaltend gestaltet, kein primärer CTA. */
+.pc-enable-multiroom {
+  display: block;
+  width: calc(100% - 36px);
+  margin: 14px 18px 18px;
+  border: 1.5px dashed var(--pc-border-strong);
+  background: transparent;
+  color: var(--pc-ink-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 10px 14px;
+  border-radius: var(--pc-radius-m);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.pc-enable-multiroom:hover {
+  border-color: var(--pc-accent);
+  color: var(--pc-accent);
+  background: var(--pc-surface-muted);
+}
+.pc-enable-multiroom[hidden] { display: none; }
 
 /* Zwischenspeicher: mehrere gemerkte Plissee-Konfigurationen (z. B. pro Zimmer)
    unter dem Vorschaubild, ohne dass man in den Konfigurator zurückspringen muss. */
@@ -274,6 +334,9 @@
 }
 .pc-saved-add:hover { background: var(--pc-accent-dark); box-shadow: 0 3px 10px rgba(31, 111, 92, 0.32); }
 .pc-saved-add:active { transform: scale(0.97); }
+/* Steht jetzt (nach der Raum-Auswahl) als eigene Zeile statt im Header neben
+   dem Titel — volle Breite macht den nächsten Schritt eindeutig. */
+.pc-saved-add { width: 100%; justify-content: center; margin-bottom: 4px; }
 
 .pc-saved-list {
   list-style: none;
@@ -281,7 +344,65 @@
   padding: 0;
   display: flex;
   flex-direction: column;
+  gap: 10px;
+}
+
+/* Ein Raum (z. B. "Wohnzimmer") mit allen zugehörigen Fenstern — die
+   Gruppierungsebene der Haus-Planung. */
+.pc-saved-room {
+  border: 1px solid var(--pc-border);
+  border-radius: var(--pc-radius-m);
+  background: var(--pc-surface);
+  padding: 10px 10px 9px;
+  box-shadow: 0 1px 2px rgba(35, 36, 31, 0.04);
+}
+.pc-saved-room__header {
+  display: flex;
+  align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+.pc-saved-room__name {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--pc-ink);
+}
+.pc-saved-room__meta {
+  font-size: 11.5px;
+  color: var(--pc-ink-muted);
+  flex: 1;
+  min-width: 0;
+}
+.pc-saved-room__view,
+.pc-saved-room__add {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--pc-border-strong);
+  background: transparent;
+  color: var(--pc-accent-dark);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.pc-saved-room__view svg { width: 12px; height: 12px; }
+.pc-saved-room__view:hover,
+.pc-saved-room__add:hover {
+  background: var(--pc-surface-muted);
+  border-color: var(--pc-accent);
+  color: var(--pc-accent);
+}
+.pc-saved-room__windows {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .pc-saved-item {
   display: flex;
@@ -586,6 +707,31 @@
 }
 .pc-note-input::placeholder { color: var(--pc-ink-muted); }
 .pc-note-input:focus { outline: 2px solid var(--pc-accent); outline-offset: 1px; }
+.pc-note-input--area { resize: vertical; min-height: 64px; font-family: inherit; }
+
+/* Raum-Auswahl unter "Mein Haus" — <select> mit typischen Räumlichkeiten,
+   plus optionalem Freitextfeld für "Andere Räumlichkeit…". Eigene, leicht
+   abgesetzte Karte statt freischwebender Zeile — macht den nächsten Schritt
+   ("Raum wählen, dann merken") klar erkennbar als eigenen Mini-Vorgang,
+   getrennt von der Merkliste darunter. */
+.pc-room-select-row {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 14px 0 12px;
+  padding: 12px 14px;
+  background: var(--pc-surface);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--pc-radius-m);
+}
+.pc-room-select-row label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--pc-ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.pc-room-select-row .pc-select { background-color: var(--pc-surface); }
 
 .pc-fabric-gallery {
   display: grid;
@@ -822,6 +968,51 @@
   width: 100%;
 }
 
+/* "Raum ansehen": interaktive 3D-Szene (Three.js, siehe plissee-room-3d.js) —
+   Nutzer kann per Drag frei um den Raum schauen, statt eine statische
+   Illustration zu betrachten. Three.js selbst lädt erst bei Klick auf "Raum
+   ansehen" nach; bis dahin zeigt .is-loading einen Platzhalter. */
+.pc-lightbox__room3d {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(720px, calc(100% - 64px));
+  aspect-ratio: 16 / 10;
+  max-height: calc(100% - 96px);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #ede9db;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+}
+.pc-lightbox__room3d canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  cursor: grab;
+}
+.pc-lightbox__room3d canvas:active { cursor: grabbing; }
+.pc-lightbox__room3d.is-loading::after {
+  content: "Lädt 3D-Ansicht …";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--pc-ink-muted);
+  background: #ede9db;
+}
+.pc-lightbox__room3d.has-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--pc-ink-muted);
+}
+
 .pc-lightbox__caption {
   position: absolute;
   left: 20px;
@@ -831,6 +1022,71 @@
 }
 .pc-lightbox__title { font-size: 15px; font-weight: 700; margin: 0 0 2px; }
 .pc-lightbox__sub { font-size: 12.5px; color: rgba(255, 255, 255, 0.7); margin: 0; }
+
+/* Bearbeitungspanel eines einzelnen Fensters innerhalb der 3D-Raumansicht —
+   erscheint, sobald der Kunde in der Szene ein Fenster antippt (siehe
+   _selectRoomWindow / mount()-Callback onSelect in plissee-room-3d.js). */
+.pc-lightbox__window-editor {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2;
+  width: min(260px, calc(100vw - 40px));
+  background: rgba(20, 21, 15, 0.86);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  border-radius: var(--pc-radius-m);
+  padding: 14px 16px 16px;
+  font-size: 12.5px;
+}
+.pc-window-editor__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.pc-window-editor__title { font-size: 13.5px; font-weight: 700; }
+.pc-window-editor__close {
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.pc-window-editor__close:hover { background: rgba(255, 255, 255, 0.22); }
+.pc-window-editor__close svg { width: 11px; height: 11px; }
+.pc-window-editor__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.pc-window-editor__field:last-child { margin-bottom: 0; }
+.pc-window-editor__field span {
+  display: flex;
+  justify-content: space-between;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11.5px;
+}
+.pc-window-editor__field span b { color: #fff; font-weight: 700; }
+.pc-window-editor__field select {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12.5px;
+}
+.pc-window-editor__field input[type="range"] {
+  width: 100%;
+  accent-color: var(--pc-accent, #c9a24a);
+}
 
 .pc-lightbox__meta {
   position: absolute;

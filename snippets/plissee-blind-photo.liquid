@@ -1,17 +1,20 @@
 {%- comment -%}
-  Foto-Modus: EIN echtes, neutrales Foto des Fensterrahmens + Plissees (z.B. in
-  einer hellen/mittleren Stoffvariante fotografiert) bleibt die feste Bildgrundlage.
-  Stofffarbe/-textur, Schiene und Klemmträger werden per CSS mix-blend-mode:multiply
-  softwareseitig darübergelegt — echte Falten, Lichtreflexe und Schatten aus dem Foto
-  bleiben dabei erhalten, nur Farbe/Muster ändern sich.
+  Foto-Modus: EIN echtes Foto des LEEREN Fensterlochs/Rahmens (OHNE montiertes
+  Plissee) bleibt die feste Bildgrundlage. Plissee, Schiene und Klemmträger
+  werden komplett als eigene CSS-Flächen darübergezeichnet — inklusive echter
+  Falten-Optik per repeating-linear-gradient (siehe _renderPhotoOverlays /
+  _pleatGradientCSS in plissee-configurator.js), nicht als Tönung einer im
+  Foto bereits vorhandenen Struktur. Bewusst so gebaut, damit "Verstellung
+  zeigen" (siehe _setupPhotoAdjustToggle) beim Zurückziehen echtes Glas zeigt
+  statt eines zweiten, unbeweglichen Plissees aus dem Foto.
 
   Wird nur gerendert, wenn im Theme-Editor unter Section-Settings ein "frame_photo"
   hochgeladen wurde (siehe sections/plissee-configurator.liquid). Ohne Foto greift
-  automatisch der Fallback auf plissee-blind-svg.liquid.
+  automatisch der Fallback auf die interaktive 3D-Ansicht (plissee-room-3d.js).
 
-  Die vier Positions-Settings (blind_top/left/width/height, rail_height,
+  Die Positions-Settings (blind_top/left/width/height, rail_height,
   bracket_top/left/width/height) legen in Prozent des Fotos fest, WO die
-  Einfärbe-Flächen liegen — einmalig im Theme-Editor an das konkrete Foto anpassen.
+  Fensteröffnung liegt — einmalig im Theme-Editor an das konkrete Foto anpassen.
 {%- endcomment -%}
 {%- liquid
   assign blind_top = section.settings.blind_top | default: 8

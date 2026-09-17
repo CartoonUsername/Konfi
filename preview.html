@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Vorschau — Plissee-Konfigurator</title>
-<link rel="stylesheet" href="assets/plissee-configurator.css?v=8">
+<link rel="stylesheet" href="assets/plissee-configurator.css?v=24">
 <style>
   body { margin: 0; }
   .pc-demo-bar {
@@ -17,7 +17,11 @@
 </style>
 </head>
 <body>
-<div class="pc-demo-bar">Statische Vorschau — bindet dieselben CSS/JS-Assets wie <code>sections/plissee-configurator.liquid</code></div>
+<div class="pc-demo-bar">
+  Statische Vorschau — bindet dieselben CSS/JS-Assets wie <code>sections/plissee-configurator.liquid</code>
+  · <a href="?" style="color:#fff;">3D-Modus</a>
+  · <a href="?photo=1" style="color:#fff;">Verstellung-Button testen (Platzhalterbild, kein echtes Foto)</a>
+</div>
 
 <div class="pc-root" data-pc-root>
   <nav class="pc-breadcrumb" aria-label="Breadcrumb">
@@ -35,12 +39,9 @@
 
   <div class="pc-layout">
     <div class="pc-preview">
-      <div class="pc-preview__toolbar" role="group" aria-label="Ansicht wechseln">
-        <button type="button" class="pc-icon-btn" data-view-single aria-pressed="true" aria-label="Einzelansicht">
-          <svg viewBox="0 0 16 16" fill="none"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.4"/></svg>
-        </button>
-        <button type="button" class="pc-icon-btn" data-view-grid aria-pressed="false" aria-label="Rasteransicht">
-          <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="2.4" rx="1" fill="currentColor"/><rect x="2" y="6.8" width="12" height="2.4" rx="1" fill="currentColor"/><rect x="2" y="10.6" width="12" height="2.4" rx="1" fill="currentColor"/></svg>
+      <div class="pc-preview__toolbar" role="group" aria-label="Vorschau-Optionen">
+        <button type="button" class="pc-icon-btn" data-photo-adjust aria-pressed="false" aria-label="Verstellung zeigen" hidden>
+          <svg viewBox="0 0 16 16" fill="none"><line x1="8" y1="2" x2="8" y2="14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5 4.5L8 1.5L11 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11.5L8 14.5L11 11.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
         <button type="button" class="pc-icon-btn" data-zoom-btn aria-label="Vorschau vergrößern">
           <svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -48,71 +49,116 @@
       </div>
 
       <div class="pc-preview__stage" data-stage-single>
-        <span class="pc-preview__select-hint" data-preview-select-hint>Auswählen</span>
-        <template id="pc-blind-tpl">
-          <svg class="pc-blind" data-blind-visual data-blind-svg viewBox="0 0 360 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Plissee-Vorschau im Fensterrahmen">
-            <defs>
-              <linearGradient data-frame-white x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#ffffff"></stop>
-                <stop offset="100%" stop-color="#e9e8e1"></stop>
-              </linearGradient>
-              <linearGradient data-reveal-gradient x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stop-color="#f7f6f0"></stop>
-                <stop offset="100%" stop-color="#c3c1b4"></stop>
-              </linearGradient>
-
-              <linearGradient data-pleat-gradient x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#c9c4b2"></stop>
-                <stop offset="16%" stop-color="#f7f4e9"></stop>
-                <stop offset="55%" stop-color="#e2ddc9"></stop>
-                <stop offset="85%" stop-color="#b8b29d"></stop>
-                <stop offset="100%" stop-color="#c9c4b2"></stop>
-              </linearGradient>
-              <pattern data-pleat-pattern width="222" height="6" patternUnits="userSpaceOnUse">
-                <rect width="222" height="6" data-pleat-tile-fill></rect>
-              </pattern>
-              <linearGradient data-rail-gradient x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#5a5a56"></stop>
-                <stop offset="50%" stop-color="#302f2c"></stop>
-                <stop offset="100%" stop-color="#1c1b19"></stop>
-              </linearGradient>
-              <linearGradient data-bracket-gradient x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stop-color="#4a4a46"></stop>
-                <stop offset="100%" stop-color="#191816"></stop>
-              </linearGradient>
-              <filter data-fabric-noise x="-20%" y="-20%" width="140%" height="140%">
-                <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="noise"></feTurbulence>
-                <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.45 0.45 0.45 0 0" result="noiseAlpha"></feColorMatrix>
-                <feComposite in="noiseAlpha" in2="SourceGraphic" operator="in"></feComposite>
-              </filter>
-            </defs>
-
-            <!-- Fensterrahmen (fix, ändert sich nie) -->
-            <rect x="6" y="6" width="348" height="448" rx="2" fill="none" stroke="#dad8cd" stroke-width="1"></rect>
-            <rect x="8" y="8" width="340" height="24" data-frame-fill></rect>
-            <rect x="8" y="428" width="340" height="24" data-frame-fill></rect>
-            <rect x="324" y="8" width="24" height="444" data-frame-fill></rect>
-            <rect x="8" y="8" width="18" height="444" data-frame-fill></rect>
-            <polygon points="26,8 26,452 94,426 94,34" data-reveal-fill></polygon>
-
-            <!-- Plissee (dynamisch eingefärbt) -->
-            <rect x="94" y="34" width="230" height="16" rx="2" data-rail-fill></rect>
-            <circle cx="209" cy="42" r="2.2" fill="#00000055"></circle>
-
-            <rect x="98" y="52" width="222" height="356" data-pleats-fill></rect>
-            <rect x="98" y="52" width="222" height="356" data-noise-filter style="mix-blend-mode:overlay" opacity="0.35"></rect>
-
-            <rect x="94" y="410" width="230" height="16" rx="2" data-rail-fill></rect>
-            <circle cx="209" cy="418" r="2.2" fill="#00000055"></circle>
-
-            <rect x="317" y="34" width="4" height="392" fill="#cfcdc2"></rect>
-
-            <rect x="80" y="210" width="26" height="56" rx="7" data-bracket-fill></rect>
-            <rect x="68" y="227" width="16" height="22" rx="4" data-bracket-fill></rect>
-          </svg>
-        </template>
-        <div data-blind-mount="main"></div>
+        <span class="pc-preview__select-hint" data-preview-select-hint>Ziehen zum Drehen</span>
+        <script>
+          // Demo-Harness: ?photo=1 in der URL simuliert den Foto-Modus lokal
+          // (im echten Theme entscheidet section.settings.frame_photo darüber,
+          // siehe sections/plissee-configurator.liquid) — damit sich der
+          // "Verstellung zeigen"-Button (siehe _setupPhotoAdjustToggle in
+          // plissee-configurator.js) auch ohne Zugriff auf den Theme-Editor
+          // lokal testen lässt. Als Basisbild dient ein echter Screenshot der
+          // eigenen 3D-Ansicht (docs/demo-3d-capture-empty.png, OHNE Plissee)
+          // statt einer Zeichnung — im echten Shop ersetzt ihr das durch euer
+          // eigenes hochgeladenes Fensterfoto.
+          document.write(
+            new URLSearchParams(location.search).get("photo") === "1"
+              ? '<div class="pc-photo-stage" data-blind-visual data-photo-stage id="pc-demo-photo"></div>'
+              : '<div class="pc-preview__stage3d" data-stage-single-3d></div>'
+          );
+        </script>
       </div>
+      <script>
+        (function () {
+          var stage = document.getElementById("pc-demo-photo");
+          if (!stage) return;
+          // Basisbild: ein ECHTER Screenshot der eigenen 3D-Ansicht, aber
+          // OHNE Plissee/Schiene/Klemmträger (docs/demo-3d-capture-empty.png)
+          // — nur leerer Rahmen + die helle "Glas"-Fläche (siehe skyPlane in
+          // buildWindowGroup). Wichtig: ein Screenshot MIT bereits sichtbarem
+          // Plissee hätte zwei Plissees übereinander ergeben — das feste,
+          // eingefärbte im Foto UND das bewegliche Overlay obendrauf, ohne
+          // dass das Zurückziehen (Verstellung zeigen) irgendeinen Sinn
+          // ergeben hätte, weil darunter immer noch ein Plissee sichtbar
+          // gewesen wäre. Mit dem LEEREN Rahmen liefert einzig das Overlay
+          // das sichtbare Plissee — exakt wie im echten Foto-Modus mit einem
+          // echten (plissee-losen) Kundenfoto.
+          stage.innerHTML =
+            '<img class="pc-photo-base" src="docs/demo-3d-capture-empty.png" alt="Screenshot der leeren 3D-Rahmenansicht (Demo-Harness für den Verstellung-Button)">' +
+            '<div class="pc-photo-fabric-overlay" data-photo-fabric style="top:12.8%; left:12.4%; width:75%; height:72.8%;"></div>' +
+            '<div class="pc-photo-rail-overlay" data-photo-rail style="top:11.3%; left:12.4%; width:75%; height:1.5%;"></div>' +
+            '<div class="pc-photo-rail-overlay" data-photo-rail style="top:85.6%; left:12.4%; width:75%; height:1.5%;"></div>' +
+            '<div class="pc-photo-bracket-overlay" data-photo-bracket style="top:44%; left:7%; width:4%; height:9%;"></div>';
+        })();
+      </script>
+      <p style="font-size:11px;color:#8a8c80;text-align:center;margin:6px 18px 0;" data-demo-photo-caption hidden>Demo-Harness: Basisbild ist ein Screenshot der eigenen 3D-Ansicht — im Shop erscheint hier euer echtes, hochgeladenes Fensterfoto.</p>
+      <script>
+        if (document.getElementById("pc-demo-photo")) {
+          document.querySelector("[data-demo-photo-caption]").hidden = false;
+        }
+      </script>
+
+      <template id="pc-blind-tpl">
+        <svg class="pc-blind" data-blind-visual data-blind-svg viewBox="0 0 360 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Plissee-Vorschau im Fensterrahmen">
+          <defs>
+            <linearGradient data-frame-white x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#ffffff"></stop>
+              <stop offset="100%" stop-color="#e9e8e1"></stop>
+            </linearGradient>
+            <linearGradient data-reveal-gradient x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#f7f6f0"></stop>
+              <stop offset="100%" stop-color="#c3c1b4"></stop>
+            </linearGradient>
+
+            <linearGradient data-pleat-gradient x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#c9c4b2"></stop>
+              <stop offset="16%" stop-color="#f7f4e9"></stop>
+              <stop offset="55%" stop-color="#e2ddc9"></stop>
+              <stop offset="85%" stop-color="#b8b29d"></stop>
+              <stop offset="100%" stop-color="#c9c4b2"></stop>
+            </linearGradient>
+            <pattern data-pleat-pattern width="222" height="6" patternUnits="userSpaceOnUse">
+              <rect width="222" height="6" data-pleat-tile-fill></rect>
+            </pattern>
+            <linearGradient data-rail-gradient x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#5a5a56"></stop>
+              <stop offset="50%" stop-color="#302f2c"></stop>
+              <stop offset="100%" stop-color="#1c1b19"></stop>
+            </linearGradient>
+            <linearGradient data-bracket-gradient x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#4a4a46"></stop>
+              <stop offset="100%" stop-color="#191816"></stop>
+            </linearGradient>
+            <filter data-fabric-noise x="-20%" y="-20%" width="140%" height="140%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="noise"></feTurbulence>
+              <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.45 0.45 0.45 0 0" result="noiseAlpha"></feColorMatrix>
+              <feComposite in="noiseAlpha" in2="SourceGraphic" operator="in"></feComposite>
+            </filter>
+          </defs>
+
+          <!-- Fensterrahmen (fix, ändert sich nie) -->
+          <rect x="6" y="6" width="348" height="448" rx="2" fill="none" stroke="#dad8cd" stroke-width="1"></rect>
+          <rect x="8" y="8" width="340" height="24" data-frame-fill></rect>
+          <rect x="8" y="428" width="340" height="24" data-frame-fill></rect>
+          <rect x="324" y="8" width="24" height="444" data-frame-fill></rect>
+          <rect x="8" y="8" width="18" height="444" data-frame-fill></rect>
+          <polygon points="26,8 26,452 94,426 94,34" data-reveal-fill></polygon>
+
+          <!-- Plissee (dynamisch eingefärbt) -->
+          <rect x="94" y="34" width="230" height="16" rx="2" data-rail-fill></rect>
+          <circle cx="209" cy="42" r="2.2" fill="#00000055"></circle>
+
+          <rect x="98" y="52" width="222" height="356" data-pleats-fill></rect>
+          <rect x="98" y="52" width="222" height="356" data-noise-filter style="mix-blend-mode:overlay" opacity="0.35"></rect>
+
+          <rect x="94" y="410" width="230" height="16" rx="2" data-rail-fill></rect>
+          <circle cx="209" cy="418" r="2.2" fill="#00000055"></circle>
+
+          <rect x="317" y="34" width="4" height="392" fill="#cfcdc2"></rect>
+
+          <rect x="80" y="210" width="26" height="56" rx="7" data-bracket-fill></rect>
+          <rect x="68" y="227" width="16" height="22" rx="4" data-bracket-fill></rect>
+        </svg>
+      </template>
 
       <div class="pc-preview__grid" data-stage-grid hidden>
         <div class="pc-blind-thumb" data-blind-mount="grid-1"></div>
@@ -174,18 +220,25 @@
         <span>Stoff: <strong data-meta-fabric>–</strong></span>
       </div>
 
-      <div class="pc-saved-configs">
+      <button type="button" class="pc-enable-multiroom" data-enable-multiroom>+ Mehrere Räume ausstatten</button>
+
+      <div class="pc-saved-configs" data-saved-configs-panel hidden>
         <div class="pc-saved-configs__header">
           <div>
-            <h3 class="pc-saved-configs__title">Meine Konfigurationen</h3>
-            <p class="pc-saved-configs__hint">Mehrere Plissees für verschiedene Fenster/Zimmer sammeln und gemeinsam bestellen.</p>
+            <h3 class="pc-saved-configs__title">Mein Haus</h3>
+            <p class="pc-saved-configs__hint">Jedes Fenster einem Raum zuordnen und merken — so plant ihr bequem das ganze Haus, Zimmer für Zimmer.</p>
           </div>
-          <button type="button" class="pc-saved-add" data-save-config>Merken</button>
         </div>
+        <div class="pc-room-select-row">
+          <label for="pc-room-select">Raum für dieses Fenster</label>
+          <select class="pc-select" id="pc-room-select" data-room-select></select>
+          <input type="text" class="pc-note-input" data-room-custom hidden maxlength="60" placeholder="Raumname eingeben">
+        </div>
+        <button type="button" class="pc-saved-add" data-save-config>Fenster merken</button>
         <ul class="pc-saved-list" data-saved-list></ul>
-        <p class="pc-saved-empty" data-saved-empty>Noch keine gemerkten Konfigurationen — mit „Merken“ sammelst du weitere Plissees, bevor du gemeinsam bestellst.</p>
+        <p class="pc-saved-empty" data-saved-empty>Noch keine Räume geplant — Raum auswählen, Plissee einstellen und „Fenster merken“ klicken, um mit dem nächsten Fenster weiterzumachen.</p>
         <div class="pc-saved-summary" data-saved-summary hidden>
-          <span><strong data-saved-count>0</strong> gemerkt</span>
+          <span><strong data-saved-rooms>0</strong> <span data-saved-room-word>Räume</span> · <strong data-saved-count>0</strong> Fenster</span>
           <span>Zwischensumme: <strong data-saved-total>0,00 €</strong></span>
         </div>
       </div>
@@ -269,9 +322,9 @@
       </section>
 
       <section class="pc-card">
-        <h2 class="pc-card__title">Hinweis <span style="font-weight:500;color:var(--pc-ink-muted);">(optional)</span></h2>
-        <p class="pc-card__hint">Zur eigenen Zuordnung, z. B. Zimmer- oder Fensterbezeichnung.</p>
-        <input type="text" class="pc-note-input" data-note-input maxlength="120" placeholder="z. B. Zimmer 1">
+        <h2 class="pc-card__title">Anmerkung <span style="font-weight:500;color:var(--pc-ink-muted);">(optional)</span></h2>
+        <p class="pc-card__hint">Möchten Sie uns noch etwas mitteilen — Wünsche, Montagehinweise oder Sonstiges?</p>
+        <textarea class="pc-note-input pc-note-input--area" data-note-input maxlength="500" rows="3" placeholder="Ihre Anmerkung …"></textarea>
       </section>
 
       <section class="pc-card pc-buy">
@@ -317,6 +370,7 @@
   <script type="application/json" data-pc-config>
   {
     "currency": "€",
+    "plisseeModelUrl": "assets/plissee-parts.glb?v=2",
     "baseFee": 12.22,
     "pricePerMeterWidth": 25.39,
     "pricePerMeterHeight": 10.5,
@@ -418,6 +472,7 @@
   </script>
 </div>
 
-<script src="assets/plissee-configurator.js" defer></script>
+<script src="assets/plissee-room-3d.js?v=28" defer></script>
+<script src="assets/plissee-configurator.js?v=14" defer></script>
 </body>
 </html>

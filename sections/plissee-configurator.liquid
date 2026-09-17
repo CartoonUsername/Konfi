@@ -39,12 +39,12 @@
   <div class="pc-layout">
     {%- comment -%} 2. Vorschau-Bereich {%- endcomment -%}
     <div class="pc-preview">
-      <div class="pc-preview__toolbar" role="group" aria-label="Ansicht wechseln">
-        <button type="button" class="pc-icon-btn" data-view-single aria-pressed="true" aria-label="Einzelansicht">
-          <svg viewBox="0 0 16 16" fill="none"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.4"/></svg>
-        </button>
-        <button type="button" class="pc-icon-btn" data-view-grid aria-pressed="false" aria-label="Rasteransicht">
-          <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="2.4" rx="1" fill="currentColor"/><rect x="2" y="6.8" width="12" height="2.4" rx="1" fill="currentColor"/><rect x="2" y="10.6" width="12" height="2.4" rx="1" fill="currentColor"/></svg>
+      <div class="pc-preview__toolbar" role="group" aria-label="Vorschau-Optionen">
+        {%- comment -%} Nur im Foto-Modus sichtbar (siehe _setupPhotoAdjustToggle
+          in plissee-configurator.js) — simuliert die echte oben/unten-
+          Verstellbarkeit des Plissees am festen Referenzfoto. {%- endcomment -%}
+        <button type="button" class="pc-icon-btn" data-photo-adjust aria-pressed="false" aria-label="Verstellung zeigen" hidden>
+          <svg viewBox="0 0 16 16" fill="none"><line x1="8" y1="2" x2="8" y2="14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5 4.5L8 1.5L11 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11.5L8 14.5L11 11.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
         <button type="button" class="pc-icon-btn" data-zoom-btn aria-label="Vorschau vergrößern">
           <svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -52,11 +52,12 @@
       </div>
 
       <div class="pc-preview__stage" data-stage-single>
-        <span class="pc-preview__select-hint" data-preview-select-hint>Auswählen</span>
+        <span class="pc-preview__select-hint" data-preview-select-hint>Ziehen zum Drehen</span>
         {%- if section.settings.frame_photo -%}
           {%- render 'plissee-blind-photo' -%}
         {%- else -%}
-          {%- render 'plissee-blind-svg', instance_id: 'main' -%}
+          {%- comment -%} Interaktive 3D-Live-Ansicht (siehe plissee-room-3d.js) — ersetzt die frühere statische SVG-Illustration als Standard-Vorschau. {%- endcomment -%}
+          <div class="pc-preview__stage3d" data-stage-single-3d></div>
         {%- endif -%}
       </div>
 
@@ -94,19 +95,29 @@
         <span>Stoff: <strong data-meta-fabric>–</strong></span>
       </div>
 
-      {%- comment -%} Zwischenspeicher für mehrere Plissees/Zimmer in einer Bestellung {%- endcomment -%}
-      <div class="pc-saved-configs">
+      {%- comment -%} Standardmäßig nur Einzel-Plissee — der Haus-Planer wird erst
+        auf Wunsch freigeschaltet, damit Käufer eines einzelnen Fensters nicht mit
+        Raumfeld/Merken-UI konfrontiert werden. {%- endcomment -%}
+      <button type="button" class="pc-enable-multiroom" data-enable-multiroom>+ Mehrere Räume ausstatten</button>
+
+      {%- comment -%} Haus-Planer: mehrere Räume mit jeweils mehreren Fenstern sammeln {%- endcomment -%}
+      <div class="pc-saved-configs" data-saved-configs-panel hidden>
         <div class="pc-saved-configs__header">
           <div>
-            <h3 class="pc-saved-configs__title">Meine Konfigurationen</h3>
-            <p class="pc-saved-configs__hint">Mehrere Plissees für verschiedene Fenster/Zimmer sammeln und gemeinsam bestellen.</p>
+            <h3 class="pc-saved-configs__title">Mein Haus</h3>
+            <p class="pc-saved-configs__hint">Jedes Fenster einem Raum zuordnen und merken — so plant ihr bequem das ganze Haus, Zimmer für Zimmer.</p>
           </div>
-          <button type="button" class="pc-saved-add" data-save-config>Merken</button>
         </div>
+        <div class="pc-room-select-row">
+          <label for="pc-room-select-{{ section.id }}">Raum für dieses Fenster</label>
+          <select class="pc-select" id="pc-room-select-{{ section.id }}" data-room-select></select>
+          <input type="text" class="pc-note-input" data-room-custom hidden maxlength="60" placeholder="Raumname eingeben">
+        </div>
+        <button type="button" class="pc-saved-add" data-save-config>Fenster merken</button>
         <ul class="pc-saved-list" data-saved-list></ul>
-        <p class="pc-saved-empty" data-saved-empty>Noch keine gemerkten Konfigurationen — mit „Merken“ sammelst du weitere Plissees, bevor du gemeinsam bestellst.</p>
+        <p class="pc-saved-empty" data-saved-empty>Noch keine Räume geplant — Raum auswählen, Plissee einstellen und „Fenster merken“ klicken, um mit dem nächsten Fenster weiterzumachen.</p>
         <div class="pc-saved-summary" data-saved-summary hidden>
-          <span><strong data-saved-count>0</strong> gemerkt</span>
+          <span><strong data-saved-rooms>0</strong> <span data-saved-room-word>Räume</span> · <strong data-saved-count>0</strong> Fenster</span>
           <span>Zwischensumme: <strong data-saved-total>0,00 €</strong></span>
         </div>
       </div>
@@ -211,11 +222,12 @@
         </div>
       </section>
 
-      {%- comment -%} Optionaler Hinweistext (Raumbezeichnung o.ä.) {%- endcomment -%}
+      {%- comment -%} Freie Anmerkung des Kunden — unabhängig vom Raum-Planer,
+        immer sichtbar, gilt für die ganze Bestellung. {%- endcomment -%}
       <section class="pc-card">
-        <h2 class="pc-card__title">Hinweis <span style="font-weight:500;color:var(--pc-ink-muted);">(optional)</span></h2>
-        <p class="pc-card__hint">Zur eigenen Zuordnung, z. B. Zimmer- oder Fensterbezeichnung.</p>
-        <input type="text" class="pc-note-input" data-note-input maxlength="120" placeholder="z. B. Zimmer 1">
+        <h2 class="pc-card__title">Anmerkung <span style="font-weight:500;color:var(--pc-ink-muted);">(optional)</span></h2>
+        <p class="pc-card__hint">Möchten Sie uns noch etwas mitteilen — Wünsche, Montagehinweise oder Sonstiges?</p>
+        <textarea class="pc-note-input pc-note-input--area" data-note-input maxlength="500" rows="3" placeholder="Ihre Anmerkung …"></textarea>
       </section>
 
       {%- comment -%} 6. Preis, Menge, Warenkorb {%- endcomment -%}
@@ -271,6 +283,7 @@
   <script type="application/json" data-pc-config>
     {
       "currency": {{ section.settings.currency | default: '€' | json }},
+      "plisseeModelUrl": {{ 'plissee-parts.glb' | asset_url | json }},
       "baseFee": {{ section.settings.base_fee | default: 12.22 }},
       "pricePerMeterWidth": {{ section.settings.price_per_meter_width | default: 25.39 }},
       "pricePerMeterHeight": {{ section.settings.price_per_meter_height | default: 10.5 }},
@@ -323,6 +336,7 @@
   </script>
 </div>
 
+<script src="{{ 'plissee-room-3d.js' | asset_url }}" defer></script>
 <script src="{{ 'plissee-configurator.js' | asset_url }}" defer></script>
 
 {% schema %}
@@ -330,6 +344,9 @@
   "name": "Plissee-Konfigurator",
   "tag": "section",
   "class": "shopify-section--plissee-configurator",
+  "enabled_on": {
+    "templates": ["product"]
+  },
   "settings": [
     { "type": "text", "id": "heading", "label": "Überschrift", "default": "Konfigurieren Sie Ihr Plissee" },
     { "type": "text", "id": "subheading", "label": "Unterzeile" },
@@ -365,9 +382,9 @@
     },
     {
       "type": "paragraph",
-      "content": "Ohne Foto wird automatisch die Illustration verwendet. Mit Foto: ein neutrales Produktfoto hochladen, dann die Prozent-Werte unten so anpassen, dass sie exakt auf die Stofffläche/Schiene/Klemmträger im Foto treffen (Werte = % von Fotobreite/-höhe, vom oberen linken Bildrand aus)."
+      "content": "Ohne Foto wird automatisch die 3D-Ansicht verwendet. Mit Foto: WICHTIG – ein Foto vom LEEREN Fensterloch/Rahmen hochladen, OHNE montiertes Plissee (z. B. eine offene Glastür/ein leerer Fensterausschnitt). Plissee, Schiene und Klemmträger werden komplett per Overlay darübergezeichnet, inkl. Faltenoptik. Ein Foto mit bereits sichtbarem Plissee funktioniert NICHT richtig (zwei Plissees übereinander). Die Prozent-Werte unten legen fest, wo im Foto die Fensteröffnung liegt (% von Fotobreite/-höhe, vom oberen linken Bildrand aus)."
     },
-    { "type": "image_picker", "id": "frame_photo", "label": "Fensterrahmen-Foto" },
+    { "type": "image_picker", "id": "frame_photo", "label": "Fensterrahmen-Foto (LEERES Fenster, ohne Plissee)" },
     { "type": "number", "id": "blind_top", "label": "Stofffläche – Abstand oben (%)", "default": 8 },
     { "type": "number", "id": "blind_left", "label": "Stofffläche – Abstand links (%)", "default": 26 },
     { "type": "number", "id": "blind_width", "label": "Stofffläche – Breite (%)", "default": 62 },

@@ -16,6 +16,40 @@
     return amount.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " " + (currency || "€");
   }
 
+  /** Vorschläge für das Raum-Eingabefeld ("Mein Haus") — typische Räumlichkeiten
+   * eines Hauses/einer Wohnung, damit man den Raum per Vorschlagsliste auswählen
+   * statt jedes Mal frei eintippen zu müssen. Freitext bleibt weiterhin möglich
+   * (das <input list> lässt jeden Wert zu), das ist nur die Vorbelegung. */
+  var ROOM_NAME_PRESETS = [
+    "Wohnzimmer",
+    "Schlafzimmer 1",
+    "Schlafzimmer 2",
+    "Kinderzimmer",
+    "Küche",
+    "Esszimmer",
+    "Bad",
+    "Gästezimmer",
+    "Arbeitszimmer",
+    "Flur",
+    "Keller",
+    "Dachboden",
+  ];
+
+  /** Einheitspreis für beliebige Maße/Auswahl — losgelöst vom aktuellen State,
+   * damit dieselbe Formel auch für bereits gemerkte Fenster (Raum-Planer,
+   * Bearbeitung in der 3D-Ansicht) genutzt werden kann, ohne den State-
+   * "aktuelle Konfiguration" umzuschalten. */
+  function computeUnitPrice(config, { width, height, fabricId, railId, bracketId }) {
+    const fabric = config.fabrics.find((f) => f.id === fabricId);
+    if (!fabric) return 0;
+    const rail = config.rails.find((r) => r.id === railId);
+    const bracket = config.brackets.find((b) => b.id === bracketId);
+    const base = config.baseFee + (width / 100) * config.pricePerMeterWidth + (height / 100) * config.pricePerMeterHeight;
+    const surcharge = (fabric.surcharge || 0) + (rail ? rail.surcharge : 0) + (bracket ? bracket.surcharge : 0);
+    const unit = Math.max(base + surcharge, config.minPrice);
+    return Math.round(unit * 100) / 100;
+  }
+
   /* ---------------------------------------------------------------------
    * State: hält alle Konfigurationswerte + Preisberechnung.
    * Kennt keine DOM-Elemente. Benachrichtigt Listener bei jeder Änderung.
@@ -29,8 +63,12 @@
       this.bracketId = config.brackets[0] ? config.brackets[0].id : null;
       this.fabricId = config.fabrics[0] ? config.fabrics[0].id : null;
       this.quantity = 1;
+      // Raum-Zuordnung (z. B. "Wohnzimmer") — Grundlage für die Haus-Planung:
+      // mehrere Fenster desselben Raums werden in der Merkliste gruppiert.
+      this.room = "";
+      // Freier Hinweistext des Kunden ("Anmerkung") — unabhängig vom Raum-
+      // Planer, landet auf jeder Warenkorbposition (siehe toCartProperties).
       this.note = "";
-      this.view = "single";
       this.filters = { collection: "", colorGroup: "", opacity: "" };
       this.savedConfigs = [];
       // Ob die aktuelle Konfiguration "zählt" (als weiteres Stück on top der
@@ -116,18 +154,20 @@
       this.setQuantity(this.quantity + delta);
     }
 
-    /** Freiwilliger Hinweistext (z. B. Raumbezeichnung) — kein Pflichtfeld,
-     * wird nur als Warenkorb-Eigenschaft mitgeschickt, wenn ausgefüllt. */
-    setNote(value) {
-      this.note = String(value || "").slice(0, 120);
+    /** Raumbezeichnung (z. B. "Wohnzimmer") — kein Pflichtfeld, aber die
+     * Grundlage für die Haus-Planung: Fenster mit demselben Raumnamen werden
+     * in der Merkliste als eine Gruppe zusammengefasst. */
+    setRoom(value) {
+      this.room = String(value || "").slice(0, 60);
       this._currentDirty = true;
-      this._emit("note");
+      this._emit("room");
     }
 
-    setView(view) {
-      if (!["single", "grid"].includes(view)) return;
-      this.view = view;
-      this._emit("view");
+    /** Freier Hinweistext ("Anmerkung") — vom Raum-Planer unabhängig, gilt
+     * für die ganze Bestellung, nicht pro Fenster. */
+    setNote(value) {
+      this.note = String(value || "").slice(0, 500);
+      this._emit("note");
     }
 
     get rail() {
@@ -160,16 +200,13 @@
      * Stoffgruppe, keine Faktoren auf den Gesamtpreis.
      */
     get unitPrice() {
-      const fabric = this.fabric;
-      if (!fabric) return 0;
-      const base =
-        this.config.baseFee +
-        (this.width / 100) * this.config.pricePerMeterWidth +
-        (this.height / 100) * this.config.pricePerMeterHeight;
-      const surcharge =
-        (fabric.surcharge || 0) + (this.rail ? this.rail.surcharge : 0) + (this.bracket ? this.bracket.surcharge : 0);
-      const unit = Math.max(base + surcharge, this.config.minPrice);
-      return Math.round(unit * 100) / 100;
+      return computeUnitPrice(this.config, {
+        width: this.width,
+        height: this.height,
+        fabricId: this.fabricId,
+        railId: this.railId,
+        bracketId: this.bracketId,
+      });
     }
 
     get totalPrice() {
@@ -197,28 +234,42 @@
         Schiene: this.rail ? this.rail.name : "",
         Klemmträger: this.bracket ? this.bracket.name : "",
       };
-      if (this.note.trim()) props.Hinweis = this.note.trim();
+      if (this.room.trim()) props.Raum = this.room.trim();
+      if (this.note.trim()) props.Anmerkung = this.note.trim();
       return props;
     }
 
-    /** "Zwischenspeicher": mehrere Plissee-Konfigurationen (z. B. pro Zimmer)
-     * sammeln, ohne die aktuelle Konfiguration zu verlieren — erst beim
-     * Warenkorb-Klick werden alle zusammen übermittelt. */
+    /** "Zwischenspeicher": mehrere Plissee-Konfigurationen für ein ganzes Haus
+     * sammeln (mehrere Räume, pro Raum mehrere Fenster), ohne die aktuelle
+     * Konfiguration zu verlieren — erst beim Warenkorb-Klick werden alle
+     * zusammen übermittelt. */
     saveCurrentConfig() {
       if (!this.isValid) return;
       this.savedConfigs.push({
         id: "cfg-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+        // Ohne Eingabe landet das Fenster in einer Sammelgruppe, statt die
+        // Zuordnung zu blockieren — Raumnamen sind bewusst kein Pflichtfeld.
+        room: this.room.trim() || "Weitere Fenster",
         width: this.width,
         height: this.height,
         fabricId: this.fabricId,
         railId: this.railId,
         bracketId: this.bracketId,
-        note: this.note,
         quantity: this.quantity,
         unitPrice: this.unitPrice,
+        // "fenster" (Standard, Brüstungshöhe) oder "tuer" (bodentiefe
+        // Glastür) — bestimmt in der 3D-Raumansicht, wie das Fenster an der
+        // Wand sitzt (siehe plissee-room-3d.js). wall: "back"/"left"/"right"
+        // — an welcher Wand das Fenster in der 3D-Raumansicht hängt. Position:
+        // normalisierte Stelle (0–1) entlang DIESER Wand; null = automatisch
+        // verteilt, bis der Kunde das Fenster in der 3D-Ansicht selbst
+        // verschiebt.
+        type: "fenster",
+        wall: "back",
+        position: null,
       });
-      // Formular für die nächste Konfiguration zurücksetzen. Ohne Reset bliebe
-      // die aktuelle Konfiguration identisch zur gerade gemerkten und würde im
+      // Formular für das nächste Fenster zurücksetzen. Ohne Reset bliebe die
+      // aktuelle Konfiguration identisch zur gerade gemerkten und würde im
       // Gesamtbetrag doppelt gezählt (einmal als Listeneintrag, einmal als
       // "aktuelle" Konfiguration) — genau der Bug, den das behebt.
       this.width = this.config.defaultWidth;
@@ -226,14 +277,36 @@
       this.railId = this.config.rails[0] ? this.config.rails[0].id : null;
       this.bracketId = this.config.brackets[0] ? this.config.brackets[0].id : null;
       this.fabricId = this.config.fabrics[0] ? this.config.fabrics[0].id : null;
-      this.note = "";
       this.quantity = 1;
+      // Der Raumname bleibt bewusst stehen: meist gehört das nächste Fenster
+      // zum selben Raum, so kann man mehrere Fenster hintereinander merken,
+      // ohne den Raumnamen jedes Mal neu einzutippen.
       this._currentDirty = false;
       this._emit("savedConfigs");
     }
 
     removeSavedConfig(id) {
       this.savedConfigs = this.savedConfigs.filter((c) => c.id !== id);
+      this._emit("savedConfigs");
+    }
+
+    /** Bearbeitet ein bereits gemerktes Fenster direkt (Maße, Typ, Position an
+     * der Wand) — genutzt von der 3D-Raumansicht, wenn der Kunde dort ein
+     * Fenster auswählt, verschiebt oder dessen Größe ändert. Der Preis wird
+     * dabei neu berechnet, da er von Breite/Höhe abhängt. */
+    updateSavedConfig(id, patch) {
+      const cfg = this.savedConfigs.find((c) => c.id === id);
+      if (!cfg) return;
+      if (patch.width != null) {
+        cfg.width = clamp(Math.round(patch.width * 10) / 10, this.config.minWidth, this.config.maxWidth);
+      }
+      if (patch.height != null) {
+        cfg.height = clamp(Math.round(patch.height * 10) / 10, this.config.minHeight, this.config.maxHeight);
+      }
+      if (patch.type === "fenster" || patch.type === "tuer") cfg.type = patch.type;
+      if (patch.wall === "back" || patch.wall === "left" || patch.wall === "right") cfg.wall = patch.wall;
+      if (patch.position != null) cfg.position = clamp(patch.position, 0.04, 0.96);
+      cfg.unitPrice = computeUnitPrice(this.config, cfg);
       this._emit("savedConfigs");
     }
 
@@ -253,7 +326,7 @@
       this.fabricId = cfg.fabricId;
       this.railId = cfg.railId;
       this.bracketId = cfg.bracketId;
-      this.note = cfg.note;
+      this.room = cfg.room;
       this.quantity = cfg.quantity;
       // Die zurückgeholte Konfiguration ist wieder eine echte, gewollte
       // Bestellposition — zählt also wieder im Gesamtbetrag mit.
@@ -263,6 +336,43 @@
 
     get savedConfigsTotal() {
       return Math.round(this.savedConfigs.reduce((sum, c) => sum + c.unitPrice * c.quantity, 0) * 100) / 100;
+    }
+
+    /** Gruppiert die Merkliste nach Raum (in der Reihenfolge, in der jeder Raum
+     * zuerst vorkam) — das ist die Grundlage für die Haus-Planung: pro Raum
+     * eine Gruppe mit allen zugehörigen Fenstern und einer Raum-Zwischensumme. */
+    get roomGroups() {
+      const order = [];
+      const map = new Map();
+      this.savedConfigs.forEach((cfg) => {
+        if (!map.has(cfg.room)) {
+          map.set(cfg.room, []);
+          order.push(cfg.room);
+        }
+        map.get(cfg.room).push(cfg);
+      });
+      return order.map((room) => {
+        const items = map.get(room);
+        const subtotal = Math.round(items.reduce((sum, c) => sum + c.unitPrice * c.quantity, 0) * 100) / 100;
+        return { room, items, subtotal };
+      });
+    }
+
+    get savedRoomCount() {
+      return new Set(this.savedConfigs.map((c) => c.room)).size;
+    }
+
+    get savedWindowCount() {
+      return this.savedConfigs.length;
+    }
+
+    /** Vorschlagsliste für das Raum-Eingabefeld: typische Räumlichkeiten
+     * (ROOM_NAME_PRESETS) zuerst, danach bereits verwendete, davon abweichende
+     * Raumnamen — so ist der Raum meist per Auswahl statt per Freitext-Tipparbeit
+     * zu bestimmen, individuelle Bezeichnungen bleiben aber möglich. */
+    get knownRoomNames() {
+      const used = this.savedConfigs.map((c) => c.room).filter(Boolean);
+      return Array.from(new Set([...ROOM_NAME_PRESETS, ...used]));
     }
 
     /** Ob die aktuelle Konfiguration als weiteres Stück mitzählt — nur, wenn
@@ -304,14 +414,19 @@
       const fabric = this.config.fabrics.find((f) => f.id === cfg.fabricId);
       const rail = this.config.rails.find((r) => r.id === cfg.railId);
       const bracket = this.config.brackets.find((b) => b.id === cfg.bracketId);
+      const sameRoom = this.savedConfigs.filter((c) => c.room === cfg.room);
+      const windowIndex = sameRoom.indexOf(cfg) + 1;
       const props = {
+        Raum: cfg.room,
+        Fenster: "Fenster " + windowIndex,
         Breite: cfg.width + " cm",
         Höhe: cfg.height + " cm",
         Stoff: fabric ? fabric.name : "",
         Schiene: rail ? rail.name : "",
         Klemmträger: bracket ? bracket.name : "",
       };
-      if (cfg.note && cfg.note.trim()) props.Hinweis = cfg.note.trim();
+      if (cfg.type === "tuer") props.Typ = "Glastür (bodentief)";
+      if (this.note.trim()) props.Anmerkung = this.note.trim();
       return props;
     }
   }
@@ -333,6 +448,39 @@
       this._renderSavedConfigs();
       this.state.subscribe((s, changeType) => this._onStateChange(s, changeType));
       this._renderAll();
+      this._initSingle3d();
+      this._setupPhotoAdjustToggle();
+    }
+
+    /** Startet die interaktive 3D-Live-Ansicht der Haupt-Vorschau (siehe
+     * plissee-room-3d.js) — ersetzt die frühere statische SVG-Illustration.
+     * Läuft asynchron (Three.js lädt erst hier nach); bis das Handle steht,
+     * bleibt die vorherige _renderAll()-Farbaktualisierung für Grid/Foto-Modus
+     * unberührt, nur die Haupt-Stage zeigt kurz einen Ladehinweis. */
+    _initSingle3d() {
+      if (!this.els.stageSingle3d || !window.PlisseeRoom3D) return;
+      this.els.stageSingle3d.classList.add("is-loading");
+      window.PlisseeRoom3D.mountSingle(this.els.stageSingle3d, this.state.config)
+        .then((handle) => {
+          this._single3d = handle;
+          this.els.stageSingle3d.classList.remove("is-loading");
+          this._updateSingle3d();
+        })
+        .catch((err) => {
+          console.error("Plissee-Konfigurator: 3D-Hauptvorschau konnte nicht geladen werden.", err);
+          this.els.stageSingle3d.classList.remove("is-loading");
+        });
+    }
+
+    _updateSingle3d() {
+      if (!this._single3d) return;
+      this._single3d.update({
+        width: this.state.width,
+        height: this.state.height,
+        fabricId: this.state.fabricId,
+        railId: this.state.railId,
+        bracketId: this.state.bracketId,
+      });
     }
 
     _queryElements() {
@@ -357,18 +505,23 @@
         selectedFabricSwatch: q("[data-selected-fabric-swatch]"),
         selectedFabricName: q("[data-selected-fabric-name]"),
         selectedFabricSub: q("[data-selected-fabric-sub]"),
+        roomSelect: q("[data-room-select]"),
+        roomCustomInput: q("[data-room-custom]"),
         noteInput: q("[data-note-input]"),
+        enableMultiRoomBtn: q("[data-enable-multiroom]"),
+        savedConfigsPanel: q("[data-saved-configs-panel]"),
         saveConfigBtn: q("[data-save-config]"),
         savedList: q("[data-saved-list]"),
         savedEmpty: q("[data-saved-empty]"),
         savedSummary: q("[data-saved-summary]"),
         savedTotal: q("[data-saved-total]"),
         savedCount: q("[data-saved-count]"),
-        viewSingleBtn: q("[data-view-single]"),
-        viewGridBtn: q("[data-view-grid]"),
+        savedRoomCount: q("[data-saved-rooms]"),
+        savedRoomWord: q("[data-saved-room-word]"),
+        photoAdjustBtn: q("[data-photo-adjust]"),
         zoomBtn: q("[data-zoom-btn]"),
         stageSingle: q("[data-stage-single]"),
-        stageGrid: q("[data-stage-grid]"),
+        stageSingle3d: q("[data-stage-single-3d]"),
         pleatGradients: qa("[data-pleat-gradient]"),
         railGradients: qa("[data-rail-gradient]"),
         bracketGradients: qa("[data-bracket-gradient]"),
@@ -445,16 +598,40 @@
       els.filterColor.addEventListener("change", (e) => state.setFilter("colorGroup", e.target.value));
       els.filterOpacity.addEventListener("change", (e) => state.setFilter("opacity", e.target.value));
 
-      els.viewSingleBtn.addEventListener("click", () => state.setView("single"));
-      els.viewGridBtn.addEventListener("click", () => state.setView("grid"));
       els.zoomBtn.addEventListener("click", () => this._openLightbox({ mode: "preview" }));
-      // Jede Kachel der Rasteransicht öffnet ebenfalls die Zoom-Ansicht.
-      els.stageGrid.addEventListener("click", () => this._openLightbox({ mode: "preview" }));
       // Klick auf das Vorschaubild selbst springt zur Stoffauswahl (Hover zeigt "Auswählen").
-      els.stageSingle.addEventListener("click", () => this._scrollToFabricPicker());
+      // Kein Klick-Handler mehr auf der Haupt-Stage: die 3D-Ansicht ist jetzt
+      // selbst interaktiv (Ziehen zum Drehen) — ein "Klick springt zur
+      // Stoffauswahl"-Handler würde diese Drag-Geste stören.
 
-      els.noteInput.addEventListener("input", (e) => state.setNote(e.target.value));
+      // Raum-Auswahl unter "Mein Haus": ein <select> mit typischen
+      // Räumlichkeiten statt eines Freitextfelds — "Andere Räumlichkeit…"
+      // blendet zusätzlich ein Textfeld für individuelle Namen ein.
+      if (els.roomSelect) {
+        els.roomSelect.addEventListener("change", (e) => {
+          if (e.target.value === "__custom__") {
+            if (els.roomCustomInput) {
+              els.roomCustomInput.hidden = false;
+              els.roomCustomInput.value = "";
+              els.roomCustomInput.focus();
+            }
+            state.setRoom("");
+          } else {
+            if (els.roomCustomInput) els.roomCustomInput.hidden = true;
+            state.setRoom(e.target.value);
+          }
+        });
+      }
+      if (els.roomCustomInput) {
+        els.roomCustomInput.addEventListener("input", (e) => state.setRoom(e.target.value));
+      }
+      // Anmerkung (optional): freier Hinweistext des Kunden, unabhängig vom
+      // Raum-Planer immer sichtbar — landet auf jeder Warenkorbposition.
+      if (els.noteInput) {
+        els.noteInput.addEventListener("input", (e) => state.setNote(e.target.value));
+      }
       els.saveConfigBtn.addEventListener("click", () => state.saveCurrentConfig());
+      if (els.enableMultiRoomBtn) els.enableMultiRoomBtn.addEventListener("click", () => this._enableMultiRoom());
 
       els.qtyInput.addEventListener("change", (e) => state.setQuantity(parseInt(e.target.value, 10)));
       els.qtyInc.addEventListener("click", () => state.stepQuantity(1));
@@ -591,7 +768,11 @@
       if (changeType === "bracket") this._syncTileGroup(this.els.bracketGroup, state.bracketId);
       if (changeType === "filters") this._renderFabricGallery();
       if (changeType === "fabric") this._syncFabricSelection();
-      if (changeType === "view") this._syncView();
+      // Nur syncen, wenn das Feld nicht gerade selbst bedient wird — sonst
+      // würde eine aktive Eingabe unnötig zurückgesetzt. Wichtig für den
+      // "+ Fenster"-Schnellzugriff einer Raumgruppe: der setzt state.room
+      // programmatisch, ohne dass ein Feld je editiert wurde.
+      if (changeType === "room") this._syncRoomFields(state);
       if (changeType === "load" || changeType === "savedConfigs") {
         // Eine gemerkte Konfiguration wurde zur Bearbeitung zurückgeholt, oder
         // "Merken" hat das Formular zurückgesetzt — alle abhängigen UI-Teile
@@ -599,53 +780,130 @@
         this._syncTileGroup(this.els.railGroup, state.railId);
         this._syncTileGroup(this.els.bracketGroup, state.bracketId);
         this._syncFabricSelection();
-        this.els.noteInput.value = state.note;
+        this._syncRoomFields(state);
         this._renderSavedConfigs();
       }
       this._renderAll();
     }
 
-    /** Rendert die Liste gemerkter Konfigurationen unter dem Vorschaubild. */
-    _renderSavedConfigs() {
-      const { savedList, savedEmpty, savedSummary, savedTotal, savedCount } = this.els;
-      const configs = this.state.savedConfigs;
-      savedList.innerHTML = "";
-      savedEmpty.classList.toggle("is-visible", configs.length === 0);
-      savedSummary.hidden = configs.length === 0;
+    /** Hält Raum-Select + Freitextfeld mit state.room synchron, ohne eine
+     * gerade aktive Eingabe zu unterbrechen. */
+    _syncRoomFields(state) {
+      const { roomSelect, roomCustomInput } = this.els;
+      const isKnown = state.room === "" || this.state.knownRoomNames.includes(state.room);
+      if (roomSelect && document.activeElement !== roomSelect) {
+        roomSelect.value = isKnown ? state.room : "__custom__";
+      }
+      if (roomCustomInput) {
+        roomCustomInput.hidden = isKnown;
+        if (!isKnown && document.activeElement !== roomCustomInput) {
+          roomCustomInput.value = state.room;
+        }
+      }
+    }
 
-      configs.forEach((cfg, index) => {
-        const fabric = this.state.config.fabrics.find((f) => f.id === cfg.fabricId);
-        const label = cfg.note && cfg.note.trim() ? cfg.note.trim() : "Konfiguration " + (index + 1);
-        const li = document.createElement("li");
-        li.className = "pc-saved-item";
-        li.innerHTML =
-          '<span class="pc-saved-item__swatch" style="' +
-          (fabric ? this._fabricSwatchStyle(fabric, 6) : "") +
-          '"></span>' +
-          '<span class="pc-saved-item__info">' +
-          '<strong class="pc-saved-item__label"></strong>' +
-          '<span class="pc-saved-item__meta"></span>' +
-          "</span>" +
-          '<span class="pc-saved-item__actions">' +
-          '<button type="button" class="pc-saved-item__edit" data-saved-edit aria-label="Bearbeiten">' +
-          ICONS.edit +
-          "</button>" +
-          '<button type="button" class="pc-saved-item__remove" data-saved-remove aria-label="Entfernen">' +
-          ICONS.close +
-          "</button>" +
-          "</span>";
-        li.querySelector(".pc-saved-item__label").textContent = label;
-        li.querySelector(".pc-saved-item__meta").textContent =
-          cfg.width.toFixed(0) + "×" + cfg.height.toFixed(0) + " cm · " + (fabric ? fabric.name : "") + " · " + formatMoney(cfg.unitPrice * cfg.quantity, this.state.config.currency);
-        li.querySelector("[data-saved-edit]").addEventListener("click", () => this.state.loadSavedConfig(cfg.id));
-        li.querySelector("[data-saved-remove]").addEventListener("click", () => this.state.removeSavedConfig(cfg.id));
-        savedList.appendChild(li);
+    /** Rendert die Merkliste gruppiert nach Raum — jede Gruppe ist ein Zimmer
+     * mit seinen Fenstern, so lässt sich das ganze Haus Raum für Raum planen. */
+    _renderSavedConfigs() {
+      const { savedList, savedEmpty, savedSummary, savedTotal, savedCount, savedRoomCount, savedRoomWord } = this.els;
+      const groups = this.state.roomGroups;
+      const currency = this.state.config.currency;
+      savedList.innerHTML = "";
+      savedEmpty.classList.toggle("is-visible", groups.length === 0);
+      savedSummary.hidden = groups.length === 0;
+
+      groups.forEach((group) => {
+        const roomLi = document.createElement("li");
+        roomLi.className = "pc-saved-room";
+        roomLi.innerHTML =
+          '<div class="pc-saved-room__header">' +
+          '<span class="pc-saved-room__name"></span>' +
+          '<span class="pc-saved-room__meta"></span>' +
+          '<button type="button" class="pc-saved-room__view" data-saved-room-view>' +
+          ICONS.eye +
+          " Raum ansehen</button>" +
+          '<button type="button" class="pc-saved-room__add" data-saved-room-add>+ Fenster</button>' +
+          "</div>" +
+          '<ul class="pc-saved-room__windows"></ul>';
+        roomLi.querySelector(".pc-saved-room__name").textContent = group.room;
+        roomLi.querySelector(".pc-saved-room__meta").textContent =
+          (group.items.length === 1 ? "1 Fenster" : group.items.length + " Fenster") + " · " + formatMoney(group.subtotal, currency);
+        roomLi.querySelector("[data-saved-room-view]").addEventListener("click", () => this._openLightbox({ mode: "room", group }));
+        roomLi.querySelector("[data-saved-room-add]").addEventListener("click", () => {
+          this.state.setRoom(group.room);
+          this.els.widthInput.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+
+        const windowsEl = roomLi.querySelector(".pc-saved-room__windows");
+        group.items.forEach((cfg, index) => {
+          const fabric = this.state.config.fabrics.find((f) => f.id === cfg.fabricId);
+          const li = document.createElement("li");
+          li.className = "pc-saved-item";
+
+          const swatch = document.createElement("span");
+          swatch.className = "pc-saved-item__swatch";
+          if (fabric) swatch.setAttribute("style", this._fabricSwatchStyle(fabric, 6));
+          li.appendChild(swatch);
+
+          const info = document.createElement("span");
+          info.className = "pc-saved-item__info";
+          info.innerHTML = '<strong class="pc-saved-item__label"></strong><span class="pc-saved-item__meta"></span>';
+          info.querySelector(".pc-saved-item__label").textContent = "Fenster " + (index + 1);
+          info.querySelector(".pc-saved-item__meta").textContent =
+            cfg.width.toFixed(0) + "×" + cfg.height.toFixed(0) + " cm · " + (fabric ? fabric.name : "") + " · " + formatMoney(cfg.unitPrice * cfg.quantity, currency);
+          li.appendChild(info);
+
+          const actions = document.createElement("span");
+          actions.className = "pc-saved-item__actions";
+          actions.innerHTML =
+            '<button type="button" class="pc-saved-item__edit" data-saved-edit aria-label="Bearbeiten">' +
+            ICONS.edit +
+            "</button>" +
+            '<button type="button" class="pc-saved-item__remove" data-saved-remove aria-label="Entfernen">' +
+            ICONS.close +
+            "</button>";
+          actions.querySelector("[data-saved-edit]").addEventListener("click", () => this.state.loadSavedConfig(cfg.id));
+          actions.querySelector("[data-saved-remove]").addEventListener("click", () => this.state.removeSavedConfig(cfg.id));
+          li.appendChild(actions);
+
+          windowsEl.appendChild(li);
+        });
+
+        savedList.appendChild(roomLi);
       });
 
-      if (configs.length > 0) {
-        savedTotal.textContent = formatMoney(this.state.savedConfigsTotal, this.state.config.currency);
-        savedCount.textContent = String(configs.length);
+      if (groups.length > 0) {
+        savedTotal.textContent = formatMoney(this.state.savedConfigsTotal, currency);
+        savedCount.textContent = String(this.state.savedWindowCount);
+        if (savedRoomCount) savedRoomCount.textContent = String(this.state.savedRoomCount);
+        if (savedRoomWord) savedRoomWord.textContent = this.state.savedRoomCount === 1 ? "Raum" : "Räume";
       }
+
+      this._renderRoomSuggestions();
+    }
+
+    /** Baut das Raum-<select> aus typischen Räumlichkeiten + bereits
+     * verwendeten eigenen Namen neu auf und hält es mit state.room synchron
+     * — inklusive der "Andere Räumlichkeit…"-Option für Freitext. */
+    _renderRoomSuggestions() {
+      const select = this.els.roomSelect;
+      if (!select) return;
+      select.innerHTML = "";
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "Raum wählen…";
+      select.appendChild(placeholder);
+      this.state.knownRoomNames.forEach((name) => {
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+      });
+      const customOpt = document.createElement("option");
+      customOpt.value = "__custom__";
+      customOpt.textContent = "Andere Räumlichkeit…";
+      select.appendChild(customOpt);
+      this._syncRoomFields(this.state);
     }
 
     _syncTileGroup(container, activeId) {
@@ -658,14 +916,6 @@
       Array.from(this.els.fabricGallery.children).forEach((tile) => {
         tile.setAttribute("aria-pressed", String(tile.dataset.fabricId === this.state.fabricId));
       });
-    }
-
-    _syncView() {
-      const isGrid = this.state.view === "grid";
-      this.els.stageGrid.hidden = !isGrid;
-      this.els.stageSingle.hidden = isGrid;
-      this.els.viewSingleBtn.setAttribute("aria-pressed", String(!isGrid));
-      this.els.viewGridBtn.setAttribute("aria-pressed", String(isGrid));
     }
 
     _renderBlindVisual() {
@@ -714,18 +964,46 @@
       // anhand von Breite/Höhe.
     }
 
-    /** Foto-Modus: Stofftextur/-farbe, Schiene und Klemmträger als mix-blend-mode:
-     * multiply-Flächen über dem festen Foto positionieren (Positionen kommen aus
-     * den Theme-Editor-Prozentwerten, siehe plissee-blind-photo.liquid). Ein
-     * Stoff-Foto (fabric.image) hat Vorrang vor der Flächenfarbe, wenn vorhanden. */
+    /** Foto-Modus: Referenzfoto zeigt bewusst das LEERE Fensterloch (siehe
+     * plissee-blind-photo.liquid) — das Plissee selbst, inklusive echter
+     * Falten-Optik, kommt komplett vom CSS-Overlay, nicht vom Foto. Grund:
+     * ein Foto mit bereits sichtbarem Plissee würde beim Zurückziehen
+     * ("Verstellung zeigen") ein zweites, unbewegliches Plissee freilegen
+     * statt Glas — ergibt keinen Sinn (siehe Recherche zu CSS-Fensterladen-
+     * Effekten: dieselbe repeating-linear-gradient-Technik, angewandt auf
+     * ein leeres Referenzbild, nicht als Tönung eines bereits vorhandenen
+     * Fotos). Die Falten-Formel ist dieselbe 5-Stopp-Verlaufsformel wie die
+     * SVG-Illustration (_shade), nur als CSS-Kachel statt als SVG-Gradient.
+     * Schiene und Klemmträger bleiben schlichte Flächenfarben (kein Foto-Tönen
+     * mehr nötig). Ein Stoff-Foto (fabric.image) legt sich als zweite
+     * Hintergrund-Ebene UNTER den Falten-Verlauf (multipliziert), damit auch
+     * echte Stoff-Texturfotos die Faltenschattierung bekommen. */
+    _pleatGradientCSS(color) {
+      const c0 = this._shade(color, -0.16);
+      const c1 = this._shade(color, 0.3);
+      const c2 = this._shade(color, 0.02);
+      const c3 = this._shade(color, -0.22);
+      const c4 = this._shade(color, -0.16);
+      return (
+        "repeating-linear-gradient(180deg, " +
+        c0 + " 0px, " + c1 + " 2px, " + c2 + " 4px, " + c3 + " 6px, " + c4 + " 8px)"
+      );
+    }
+
     _renderPhotoOverlays(fabric, rail, bracket) {
+      const pleatGradient = this._pleatGradientCSS(fabric.color);
       this.els.photoFabric.forEach((el) => {
+        el.style.backgroundColor = "";
         if (fabric.image) {
-          el.style.backgroundImage = "url('" + fabric.image + "')";
-          el.style.backgroundColor = "";
+          el.style.backgroundImage = pleatGradient + ", url('" + fabric.image + "')";
+          el.style.backgroundBlendMode = "multiply, normal";
+          el.style.backgroundSize = "100% 8px, cover";
+          el.style.backgroundRepeat = "repeat-y, no-repeat";
         } else {
-          el.style.backgroundImage = "";
-          el.style.backgroundColor = fabric.color;
+          el.style.backgroundImage = pleatGradient;
+          el.style.backgroundBlendMode = "";
+          el.style.backgroundSize = "100% 8px";
+          el.style.backgroundRepeat = "repeat-y";
         }
       });
 
@@ -749,6 +1027,49 @@
           el.style.backgroundImage = "";
           el.style.backgroundColor = bracketColor;
         }
+      });
+    }
+
+    /** "Verstellung zeigen": simuliert im Foto-Modus, wie sich ein Plissee an
+     * einer echten Glastür oben UND unten verstellen lässt — zieht Stoff- und
+     * Schienen-Overlay per CSS-Transition symmetrisch zur Mitte zusammen (und
+     * beim erneuten Klick wieder auseinander), ohne das feste Referenzfoto
+     * selbst zu verändern. Nur sichtbar, wenn ein Foto konfiguriert ist (siehe
+     * plissee-blind-photo.liquid) — ohne Foto existieren die Overlay-Elemente
+     * nicht im DOM, dann bleibt der Button versteckt (Standard: hidden). */
+    _setupPhotoAdjustToggle() {
+      const { photoAdjustBtn, photoFabric, photoRail } = this.els;
+      if (!photoAdjustBtn) return;
+      if (!photoFabric.length) {
+        photoAdjustBtn.hidden = true;
+        return;
+      }
+      const INSET = 0.25; // Anteil der Stoffhöhe, der je Seite eingezogen wird
+      const fabricEl = photoFabric[0];
+      const topRailEl = photoRail[0] || null;
+      const bottomRailEl = photoRail[1] || null;
+      const original = {
+        top: parseFloat(fabricEl.style.top) || 0,
+        height: parseFloat(fabricEl.style.height) || 0,
+        railHeight: topRailEl ? parseFloat(topRailEl.style.height) || 0 : 0,
+      };
+      let adjusted = false;
+
+      const apply = () => {
+        const top = adjusted ? original.top + original.height * INSET : original.top;
+        const height = adjusted ? original.height * (1 - INSET * 2) : original.height;
+        fabricEl.style.top = top + "%";
+        fabricEl.style.height = height + "%";
+        if (topRailEl) topRailEl.style.top = "calc(" + top + "% - " + original.railHeight + "%)";
+        if (bottomRailEl) bottomRailEl.style.top = "calc(" + top + "% + " + height + "%)";
+        photoAdjustBtn.setAttribute("aria-pressed", String(adjusted));
+        photoAdjustBtn.setAttribute("aria-label", adjusted ? "Verstellung zurücksetzen" : "Verstellung zeigen");
+      };
+
+      photoAdjustBtn.hidden = false;
+      photoAdjustBtn.addEventListener("click", () => {
+        adjusted = !adjusted;
+        apply();
       });
     }
 
@@ -779,15 +1100,17 @@
       els.priceTotal.textContent = formatMoney(state.grandTotal, state.config.currency);
       if (state.savedConfigs.length === 0) {
         els.priceTotalLabel.textContent = "Gesamt";
-      } else if (state.currentCountsTowardTotal) {
-        els.priceTotalLabel.textContent = "Gesamt (" + state.savedConfigs.length + " gemerkt + aktuelle)";
       } else {
-        els.priceTotalLabel.textContent = "Gesamt (" + state.savedConfigs.length + " gemerkt)";
+        const roomWord = state.savedRoomCount === 1 ? "Raum" : "Räume";
+        const winWord = state.savedWindowCount === 1 ? "Fenster" : "Fenster";
+        const base = state.savedRoomCount + " " + roomWord + " · " + state.savedWindowCount + " " + winWord;
+        els.priceTotalLabel.textContent = state.currentCountsTowardTotal ? "Gesamt (" + base + " + aktuelles)" : "Gesamt (" + base + ")";
       }
 
       els.addToCartBtn.disabled = !state.isValid;
 
       this._renderBlindVisual();
+      this._updateSingle3d();
       this._syncPropertiesForm();
     }
 
@@ -821,21 +1144,81 @@
       });
     }
 
-    _scrollToFabricPicker() {
-      this.els.fabricGallery.scrollIntoView({ behavior: "smooth", block: "center" });
-      this.els.filterCollection.focus({ preventScroll: true });
+    /** Schaltet den Raum-Planer frei ("Mehrere Räume ausstatten"). Standardmäßig
+     * ist der Konfigurator für Käufer eines einzelnen Plissees ausgelegt — nur
+     * "Mein Haus" (inkl. Raum-Auswahl) bleibt unsichtbar, bis diese Aktion
+     * bewusst gewählt wird. Das Anmerkungsfeld ist davon unabhängig immer
+     * sichtbar. Kein Weg zurück in dieser Sitzung: einmal aktiviert, bleibt
+     * der Raum-Planer sichtbar (vermeidet Datenverlust bei bereits gemerkten
+     * Fenstern durch versehentliches Wieder-Einklappen). */
+    _enableMultiRoom() {
+      if (this.els.enableMultiRoomBtn) this.els.enableMultiRoomBtn.hidden = true;
+      if (this.els.savedConfigsPanel) this.els.savedConfigsPanel.hidden = false;
     }
 
-    /** Vollbild-Zoom. Zwei Varianten:
+    /** Vollbild-Zoom. Drei Varianten:
      * - "fabric": Stofftextur füllt den ganzen Bildschirm, Metadaten-Karte unten
      *   rechts (Name/Material/Kollektion/Farbton/Verdunkelung).
-     * - "preview": vergrößerte Plissee-Vorschau zentriert, Caption unten links. */
-    _openLightbox({ mode, fabric }) {
+     * - "preview": vergrößerte Plissee-Vorschau zentriert, Caption unten links.
+     * - "room": interaktive 3D-Ansicht des Raums — alle gemerkten Fenster auf
+     *   Wand/Boden platziert, per Drag frei umsehbar (siehe plissee-room-3d.js). */
+    _openLightbox({ mode, fabric, group }) {
       const { lightbox, lightboxStage, lightboxPanel } = this.els;
+      // Eine evtl. noch laufende 3D-Szene sauber abbauen, bevor neuer Inhalt
+      // reinkommt — sonst rendert eine verwaiste Three.js-Instanz unsichtbar
+      // weiter und verbraucht CPU/GPU.
+      if (this._active3dMount && window.PlisseeRoom3D) {
+        window.PlisseeRoom3D.dispose(this._active3dMount);
+        this._active3dMount = null;
+      }
+      this._active3dHandle = null;
+      this._roomEditor = null;
       lightboxStage.innerHTML = "";
-      lightboxPanel.querySelectorAll(".pc-lightbox__caption").forEach((el) => el.remove());
+      lightboxPanel.querySelectorAll(".pc-lightbox__caption, .pc-lightbox__window-editor").forEach((el) => el.remove());
 
-      if (mode === "fabric" && fabric) {
+      if (mode === "room" && group) {
+        const mount = document.createElement("div");
+        mount.className = "pc-lightbox__room3d is-loading";
+        lightboxStage.appendChild(mount);
+
+        const caption = document.createElement("div");
+        caption.className = "pc-lightbox__caption";
+        lightboxPanel.appendChild(caption);
+        this._renderRoomCaption(caption, group);
+
+        const editor = this._buildRoomWindowEditor(group, () => this._renderRoomCaption(caption, group));
+        lightboxPanel.appendChild(editor.el);
+        this._roomEditor = editor;
+
+        if (window.PlisseeRoom3D) {
+          this._active3dMount = mount;
+          window.PlisseeRoom3D.mount(mount, group, this.state.config, {
+            // Klick auf ein Fenster (ohne Ziehen) → Bearbeitungspanel öffnen.
+            onSelect: (cfgId) => this._selectRoomWindow(cfgId, group),
+            // Fenster wurde per Drag an eine neue Stelle an der Wand gezogen —
+            // nur die Position persistieren, die 3D-Ansicht hat sich selbst
+            // schon live mitbewegt (kein refreshWindow nötig).
+            onPositionChange: (cfgId, position) => {
+              this.state.updateSavedConfig(cfgId, { position });
+              if (this._roomEditor) this._roomEditor.syncPosition(cfgId, position);
+            },
+          })
+            .then((handle) => {
+              this._active3dHandle = handle;
+              mount.classList.remove("is-loading");
+            })
+            .catch((err) => {
+              console.error("Plissee-Konfigurator: 3D-Raumansicht konnte nicht geladen werden.", err);
+              mount.classList.remove("is-loading");
+              mount.classList.add("has-error");
+              mount.textContent = "3D-Ansicht konnte nicht geladen werden.";
+            });
+        } else {
+          mount.classList.remove("is-loading");
+          mount.classList.add("has-error");
+          mount.textContent = "3D-Ansicht nicht verfügbar.";
+        }
+      } else if (mode === "fabric" && fabric) {
         const box = document.createElement("div");
         box.className = "pc-lightbox__fabric-box";
 
@@ -892,9 +1275,162 @@
       lightbox.setAttribute("aria-hidden", "false");
     }
 
+    /** Aktualisiert die Bildunterschrift der Raumansicht (Fensterzahl + Summe)
+     * — als eigene Methode, damit sie nach jeder Bearbeitung im Fensterpanel
+     * (Maße/Typ geändert → anderer Preis) live neu berechnet werden kann,
+     * statt die Zahlen vom Öffnungszeitpunkt einzufrieren. */
+    _renderRoomCaption(caption, group) {
+      const subtotal = Math.round(group.items.reduce((sum, c) => sum + c.unitPrice * c.quantity, 0) * 100) / 100;
+      caption.innerHTML =
+        '<p class="pc-lightbox__title">' +
+        group.room +
+        '</p><p class="pc-lightbox__sub">' +
+        group.items.length +
+        " Fenster · " +
+        formatMoney(subtotal, this.state.config.currency) +
+        " · Fenster antippen zum Bearbeiten, ziehen zum Verschieben</p>";
+    }
+
+    /** Öffnet das Bearbeitungspanel für ein per Klick in der 3D-Raumansicht
+     * ausgewähltes Fenster (siehe plissee-room-3d.js mount()-Callback
+     * onSelect). */
+    _selectRoomWindow(cfgId, group) {
+      const cfg = group.items.find((c) => c.id === cfgId);
+      if (!cfg || !this._roomEditor) return;
+      this._roomEditor.show(cfg);
+    }
+
+    /** Baut das Bearbeitungspanel für "Raum ansehen": Typ (Fenster/Glastür),
+     * Breite, Höhe, Position an der Wand — alles direkt in der 3D-Ansicht
+     * änderbar, ohne den Konfigurator-Dialog zu verlassen. Jede Änderung
+     * schreibt sofort über state.updateSavedConfig() zurück (das aktualisiert
+     * automatisch auch die Merkliste/den Preis) und stößt bei Bedarf einen
+     * gezielten Rebuild nur dieses einen Fensters in der 3D-Szene an. */
+    _buildRoomWindowEditor(group, onChange) {
+      const el = document.createElement("div");
+      el.className = "pc-lightbox__window-editor";
+      el.hidden = true;
+      el.innerHTML =
+        '<div class="pc-window-editor__head">' +
+        '<span class="pc-window-editor__title" data-editor-title></span>' +
+        '<button type="button" class="pc-window-editor__close" data-editor-close aria-label="Bearbeitung schließen">' +
+        ICONS.close +
+        "</button>" +
+        "</div>" +
+        '<label class="pc-window-editor__field"><span>Typ</span><select data-editor-type>' +
+        '<option value="fenster">Fenster</option>' +
+        '<option value="tuer">Glastür (bodentief)</option>' +
+        "</select></label>" +
+        '<label class="pc-window-editor__field"><span>Wand</span><select data-editor-wall>' +
+        '<option value="back">Rückwand</option>' +
+        '<option value="left">Linke Wand</option>' +
+        '<option value="right">Rechte Wand</option>' +
+        "</select></label>" +
+        '<label class="pc-window-editor__field"><span>Breite <b data-editor-width-value></b></span>' +
+        '<input type="range" data-editor-width min="' +
+        this.state.config.minWidth +
+        '" max="' +
+        this.state.config.maxWidth +
+        '" step="1"></label>' +
+        '<label class="pc-window-editor__field"><span>Höhe <b data-editor-height-value></b></span>' +
+        '<input type="range" data-editor-height min="' +
+        this.state.config.minHeight +
+        '" max="' +
+        this.state.config.maxHeight +
+        '" step="1"></label>' +
+        '<label class="pc-window-editor__field"><span>Position an der Wand</span>' +
+        '<input type="range" data-editor-position min="0" max="100" step="1"></label>';
+
+      const typeEl = el.querySelector("[data-editor-type]");
+      const wallEl = el.querySelector("[data-editor-wall]");
+      const widthEl = el.querySelector("[data-editor-width]");
+      const widthValueEl = el.querySelector("[data-editor-width-value]");
+      const heightEl = el.querySelector("[data-editor-height]");
+      const heightValueEl = el.querySelector("[data-editor-height-value]");
+      const positionEl = el.querySelector("[data-editor-position]");
+      const titleEl = el.querySelector("[data-editor-title]");
+
+      let currentId = null;
+
+      const refreshValueLabels = () => {
+        widthValueEl.textContent = widthEl.value + " cm";
+        heightValueEl.textContent = heightEl.value + " cm";
+      };
+
+      const applyDimensionChange = () => {
+        if (!currentId) return;
+        this.state.updateSavedConfig(currentId, { width: Number(widthEl.value), height: Number(heightEl.value) });
+        refreshValueLabels();
+        if (this._active3dHandle) this._active3dHandle.refreshWindow(currentId);
+        onChange();
+      };
+
+      typeEl.addEventListener("change", () => {
+        if (!currentId) return;
+        this.state.updateSavedConfig(currentId, { type: typeEl.value });
+        if (this._active3dHandle) this._active3dHandle.refreshWindow(currentId);
+        onChange();
+      });
+      // Wandwechsel setzt die Position bewusst auf die Wandmitte zurück —
+      // eine entlang der alten Wand gespeicherte Stelle (0–1) hätte auf der
+      // neuen Wand eine andere, unvorhersehbare Bedeutung.
+      wallEl.addEventListener("change", () => {
+        if (!currentId) return;
+        this.state.updateSavedConfig(currentId, { wall: wallEl.value, position: 0.5 });
+        positionEl.value = "50";
+        if (this._active3dHandle) this._active3dHandle.refreshWindow(currentId);
+        onChange();
+      });
+      widthEl.addEventListener("input", applyDimensionChange);
+      heightEl.addEventListener("input", applyDimensionChange);
+      positionEl.addEventListener("input", () => {
+        if (!currentId) return;
+        const normalized = Number(positionEl.value) / 100;
+        this.state.updateSavedConfig(currentId, { position: normalized });
+        if (this._active3dHandle) this._active3dHandle.setPosition(currentId, normalized);
+      });
+      el.querySelector("[data-editor-close]").addEventListener("click", () => {
+        hide();
+        if (this._active3dHandle) this._active3dHandle.selectWindow(null);
+      });
+
+      const hide = () => {
+        currentId = null;
+        el.hidden = true;
+      };
+
+      const show = (cfg) => {
+        currentId = cfg.id;
+        const index = group.items.indexOf(cfg);
+        titleEl.textContent = "Fenster " + (index + 1);
+        typeEl.value = cfg.type === "tuer" ? "tuer" : "fenster";
+        wallEl.value = cfg.wall === "left" || cfg.wall === "right" ? cfg.wall : "back";
+        widthEl.value = String(cfg.width);
+        heightEl.value = String(cfg.height);
+        positionEl.value = String(Math.round((cfg.position != null ? cfg.position : 0.5) * 100));
+        refreshValueLabels();
+        el.hidden = false;
+      };
+
+      // Hält den Positions-Regler mit einem Drag direkt in der 3D-Ansicht
+      // synchron, falls gerade dasselbe Fenster im Panel offen ist.
+      const syncPosition = (cfgId, normalized) => {
+        if (cfgId !== currentId) return;
+        positionEl.value = String(Math.round(normalized * 100));
+      };
+
+      return { el, show, hide, syncPosition };
+    }
+
     _closeLightbox() {
       this.els.lightbox.classList.remove("is-open");
       this.els.lightbox.setAttribute("aria-hidden", "true");
+      if (this._active3dMount && window.PlisseeRoom3D) {
+        window.PlisseeRoom3D.dispose(this._active3dMount);
+        this._active3dMount = null;
+      }
+      this._active3dHandle = null;
+      this._roomEditor = null;
     }
 
     _handleAddToCart(e) {
@@ -962,6 +1498,7 @@
     zoom: '<svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
     edit: '<svg viewBox="0 0 16 16" fill="none"><path d="M11 2.5l2.5 2.5L5 13.5H2.5V11L11 2.5z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     close: '<svg viewBox="0 0 16 16" fill="none"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+    eye: '<svg viewBox="0 0 16 16" fill="none"><path d="M1 8s2.5-4.5 7-4.5S15 8 15 8s-2.5 4.5-7 4.5S1 8 1 8z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.4"/></svg>',
   };
 
   function init(root) {
