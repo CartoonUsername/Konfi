@@ -264,24 +264,6 @@
         </form>
 
         <p class="pc-buy-note">Maßanfertigung — Lieferzeit ca. 10–14 Werktage.</p>
-
-        {%- if section.settings.instagram_url != blank -%}
-          <a
-            class="pc-instagram"
-            href="{{ section.settings.instagram_url }}"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Instagram-Profil {{ section.settings.instagram_handle | default: 'öffnen' }} (öffnet in neuem Tab)"
-          >
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/><circle cx="17.3" cy="6.7" r="1.1" fill="currentColor"/></svg>
-            <span>
-              {{ section.settings.instagram_label | default: 'Folgen Sie uns auf Instagram' }}
-              {%- if section.settings.instagram_handle != blank -%}
-                <strong>{{ section.settings.instagram_handle }}</strong>
-              {%- endif -%}
-            </span>
-          </a>
-        {%- endif -%}
       </section>
     </div>
   </div>
@@ -370,13 +352,6 @@
     { "type": "text", "id": "subheading", "label": "Unterzeile" },
     { "type": "text", "id": "breadcrumb_collection_title", "label": "Breadcrumb-Kategorie (Fallback)", "default": "Plissees" },
     { "type": "url", "id": "breadcrumb_collection_url", "label": "Breadcrumb-Kategorie-Link (Fallback)" },
-    {
-      "type": "header",
-      "content": "Instagram"
-    },
-    { "type": "url", "id": "instagram_url", "label": "Instagram-Profil-Link", "default": "https://www.instagram.com/noahprofitphones/", "info": "Leer lassen, um den Link auszublenden." },
-    { "type": "text", "id": "instagram_handle", "label": "Instagram-Name", "default": "@noahprofitphones" },
-    { "type": "text", "id": "instagram_label", "label": "Link-Text", "default": "Folgen Sie uns auf Instagram" },
     {
       "type": "header",
       "content": "Preis"
