@@ -860,6 +860,26 @@
   gap: 6px;
 }
 
+.pc-instagram {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--pc-border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--pc-ink-muted);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.pc-instagram svg { width: 18px; height: 18px; flex: 0 0 auto; }
+.pc-instagram strong { color: var(--pc-ink); font-weight: 600; margin-left: 4px; }
+.pc-instagram:hover,
+.pc-instagram:focus-visible { color: var(--pc-accent); }
+.pc-instagram:hover strong,
+.pc-instagram:focus-visible strong { color: var(--pc-accent); text-decoration: underline; }
+.pc-instagram:focus-visible { outline: 2px solid var(--pc-accent); outline-offset: 2px; border-radius: 4px; }
+
 .pc-toast {
   position: fixed;
   left: 50%;
