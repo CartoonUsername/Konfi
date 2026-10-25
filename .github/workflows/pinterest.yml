@@ -1,0 +1,55 @@
+name: Pinterest Pins
+
+on:
+  schedule:
+    - cron: "17 16 * * *"   # täglich um 16:17 UTC (17:17 / 18:17 Uhr in Deutschland)
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Nur testen, nichts hochladen (1 = ja)"
+        default: "0"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pinterest
+  cancel-in-progress: false
+
+jobs:
+  pins:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Pins hochladen
+        working-directory: etsy-shop/pinterest
+        env:
+          DRY_RUN: ${{ github.event.inputs.dry_run || '0' }}
+          PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
+          PINTEREST_APP_ID: ${{ secrets.PINTEREST_APP_ID }}
+          PINTEREST_APP_SECRET: ${{ secrets.PINTEREST_APP_SECRET }}
+          PINTEREST_REFRESH_TOKEN: ${{ secrets.PINTEREST_REFRESH_TOKEN }}
+          PINTEREST_API: ${{ vars.PINTEREST_API }}
+        run: python hochladen.py
+      - name: Statistik (montags)
+        if: github.event.inputs.dry_run != '1'
+        working-directory: etsy-shop/pinterest
+        env:
+          PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
+          PINTEREST_APP_ID: ${{ secrets.PINTEREST_APP_ID }}
+          PINTEREST_APP_SECRET: ${{ secrets.PINTEREST_APP_SECRET }}
+          PINTEREST_REFRESH_TOKEN: ${{ secrets.PINTEREST_REFRESH_TOKEN }}
+          PINTEREST_API: ${{ vars.PINTEREST_API }}
+        run: |
+          if [ "$(date -u +%u)" = "1" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then python statistik.py; fi
+        continue-on-error: true
+      - name: Stand speichern
+        run: |
+          git config user.name "pinterest-bot"
+          git config user.email "pinterest-bot@users.noreply.github.com"
+          git add etsy-shop/pinterest/ideen.json etsy-shop/pinterest/statistik.json etsy-shop/pinterest/STATISTIK.md 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "Pinterest: Stand vom $(date -u +%F)"
+          git push

@@ -1,0 +1,15 @@
+{
+ "_info": "Trage bei 'links' für jedes Produkt den Link zu deinem Etsy- oder Shopify-Angebot ein. Pins ohne Link werden übersprungen, außer 'standard_link' ist gesetzt (z. B. dein Shop).",
+ "aktiv": true,
+ "standard_link": "",
+ "pins_pro_tag": [[28, 3], [56, 4], [100000, 5]],
+ "links": {
+  "01-ugc-starter-kit": "", "02-media-kit-1-seite": "", "03-preisliste-rate-card": "", "04-angebot-kooperation": "",
+  "05-rechnung-creator": "", "06-briefing-formular": "", "07-ugc-portfolio": "", "08-link-in-bio": "", "09-case-study": "",
+  "10-content-planer": "", "11-hook-sammlung": "", "12-skript-vorlage": "", "13-instagram-posts": "", "14-story-vorlagen": "",
+  "15-reels-cover": "", "16-kooperations-tracker": "", "17-finanzplaner-creator": "", "18-checklisten-set": "",
+  "19-creator-komplettpaket": "", "20-content-paket": "", "21-preismenue-abo": "", "22-dm-vorlagen-abo": "",
+  "23-content-kalender-abo": "", "24-promo-posts-abo": "", "25-einnahmen-tracker-abo": "", "26-fan-umfragen-wunschliste": "",
+  "27-abo-creator-komplettpaket": ""
+ }
+}
