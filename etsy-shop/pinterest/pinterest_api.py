@@ -11,10 +11,20 @@ def _token():
     rt, app, sec = (os.environ.get(k, "") for k in ("PINTEREST_REFRESH_TOKEN", "PINTEREST_APP_ID", "PINTEREST_APP_SECRET"))
     if rt and app and sec:
         body = urllib.parse.urlencode({"grant_type": "refresh_token", "refresh_token": rt}).encode()
-        req = urllib.request.Request("https://api.pinterest.com/v5/oauth/token", data=body, method="POST", headers={
+        req = urllib.request.Request(API + "/oauth/token", data=body, method="POST", headers={
             "Authorization": "Basic " + base64.b64encode(f"{app}:{sec}".encode()).decode(), "Content-Type": "application/x-www-form-urlencoded"})
-        with urllib.request.urlopen(req, timeout=30) as r:
-            return json.load(r)["access_token"]
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                res = json.load(r)
+        except urllib.error.HTTPError as e:
+            raise SystemExit(f"Pinterest-Zugang abgelaufen oder ungültig ({e.code}). Neuen Refresh Token erzeugen und das GitHub-Secret "
+                             "PINTEREST_REFRESH_TOKEN ersetzen (siehe ANLEITUNG-PINTEREST.md).")
+        new_rt = res.get("refresh_token")
+        if new_rt and new_rt != rt:
+            # GitHub secrets cannot be updated from here; warn loudly so the owner replaces it before the old one expires.
+            print("::warning::Pinterest hat einen neuen Refresh Token ausgegeben. Bitte das GitHub-Secret PINTEREST_REFRESH_TOKEN "
+                  "durch den neuen Token ersetzen (siehe ANLEITUNG-PINTEREST.md, Abschnitt 'Zugang erneuern').")
+        return res["access_token"]
     t = os.environ.get("PINTEREST_ACCESS_TOKEN", "")
     if not t: raise SystemExit("Kein Pinterest-Zugang: PINTEREST_ACCESS_TOKEN oder Refresh-Token fehlt (siehe ANLEITUNG-PINTEREST.md).")
     return t
@@ -53,4 +63,5 @@ class Pinterest:
     def pin_stats(self, pin_id, start, end):
         r = self.call("GET", f"/pins/{pin_id}/analytics", query={"start_date": start, "end_date": end,
                       "metric_types": "IMPRESSION,SAVE,PIN_CLICK,OUTBOUND_CLICK", "app_types": "ALL"})
-        return (r.get("all") or {}).get("lifetime_metrics") or (r.get("all") or {}).get("summary_metrics") or {}
+        a = r.get("all") or {}
+        return a.get("summary_metrics") or a.get("lifetime_metrics") or {}  # summary = the requested date range

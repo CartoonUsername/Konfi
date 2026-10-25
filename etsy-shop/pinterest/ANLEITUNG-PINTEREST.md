@@ -32,4 +32,8 @@ Dauert etwa 20 Minuten. Die Pinterest-Seiten ändern sich ab und zu, die Namen d
 - Danach läuft es jeden Tag um ca. 17 Uhr automatisch: erst 3 Pins pro Tag, ab Woche 5 vier, ab Woche 9 fünf.
 - Pausieren: in `config.json` `"aktiv": false` setzen.
 
+## 7. Zugang erneuern
+- Der Refresh Token läuft irgendwann ab (Pinterest nennt das Ablaufdatum beim Erzeugen). Dann bricht der tägliche Lauf mit der Meldung „Pinterest-Zugang abgelaufen“ ab.
+- Wenn im Protokoll eine Warnung „neuer Refresh Token“ steht oder der Zugang abgelaufen ist: in deiner Pinterest-App einen neuen Token erzeugen und das GitHub-Secret `PINTEREST_REFRESH_TOKEN` ersetzen.
+
 Falls Pinterest den Entwickler-Zugang ablehnt: Die fertigen Pins aus `bilder/` kannst du auch in Tailwind hochladen.
