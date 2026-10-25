@@ -1,0 +1,178 @@
+{
+ "terra": {
+  "caps": "Anton",
+  "serif": "Bodoni Moda",
+  "hand": "Homemade Apple",
+  "body": "Work Sans",
+  "ink": "1F1A17",
+  "paper": "F2EAE1",
+  "alt": "ECDED2",
+  "dark": "2E2420",
+  "accent": "A9542F",
+  "soft": "ECDED2",
+  "muted": "6E6259",
+  "line": "BCAEA2",
+  "note": "FBF8F4",
+  "ink2": "4A3F38",
+  "tape": [
+   236,
+   226,
+   208
+  ],
+  "grain": 10
+ },
+ "kobalt": {
+  "caps": "Archivo Black",
+  "serif": "Libre Baskerville",
+  "hand": "Caveat",
+  "body": "Karla",
+  "ink": "141B33",
+  "paper": "F7F5EF",
+  "alt": "FFF1C2",
+  "dark": "2340B8",
+  "accent": "2340B8",
+  "soft": "DCE3FA",
+  "muted": "5B6178",
+  "line": "C9CEDD",
+  "note": "FFFFFF",
+  "ink2": "2B3350",
+  "tape": [
+   255,
+   236,
+   150
+  ],
+  "grain": 5
+ },
+ "rosa": {
+  "caps": "Bagel Fat One",
+  "serif": "Pacifico",
+  "hand": "Gochi Hand",
+  "body": "Nunito Sans",
+  "ink": "3A1020",
+  "paper": "FFF0F3",
+  "alt": "FFD6E0",
+  "dark": "B5174F",
+  "accent": "E0457B",
+  "soft": "FFD6E0",
+  "muted": "8A5A68",
+  "line": "F2B8C6",
+  "note": "FFFFFF",
+  "ink2": "5C2236",
+  "tape": [
+   255,
+   182,
+   205
+  ],
+  "grain": 6
+ },
+ "mono": {
+  "caps": "IBM Plex Sans",
+  "serif": "Libre Baskerville",
+  "hand": "Kalam",
+  "body": "IBM Plex Sans",
+  "ink": "111111",
+  "paper": "F4F4F1",
+  "alt": "E7E6E0",
+  "dark": "161616",
+  "accent": "8A6D3B",
+  "soft": "E7E6E0",
+  "muted": "6B6B66",
+  "line": "C9C8C2",
+  "note": "FFFFFF",
+  "ink2": "333333",
+  "tape": [
+   220,
+   220,
+   214
+  ],
+  "grain": 3
+ },
+ "salbei": {
+  "caps": "Cormorant Garamond",
+  "serif": "Cormorant Garamond",
+  "hand": "Reenie Beanie",
+  "body": "Jost",
+  "ink": "2F3A2A",
+  "paper": "EEF0E6",
+  "alt": "DCE3D0",
+  "dark": "4F5D3F",
+  "accent": "6F8450",
+  "soft": "DCE3D0",
+  "muted": "6F7766",
+  "line": "C3CCB4",
+  "note": "FAFBF6",
+  "ink2": "45503D",
+  "tape": [
+   214,
+   206,
+   180
+  ],
+  "grain": 8
+ },
+ "noir": {
+  "caps": "Italiana",
+  "serif": "Cormorant Garamond",
+  "hand": "Nothing You Could Do",
+  "body": "Montserrat",
+  "ink": "1A1613",
+  "paper": "F3EDE3",
+  "alt": "E9DFCF",
+  "dark": "15110F",
+  "accent": "B8925A",
+  "soft": "E9DFCF",
+  "muted": "8C8274",
+  "line": "6A5F52",
+  "note": "FFFFFF",
+  "ink2": "3A332C",
+  "tape": [
+   214,
+   190,
+   140
+  ],
+  "grain": 6
+ },
+ "zitrus": {
+  "caps": "Dela Gothic One",
+  "serif": "DM Serif Display",
+  "hand": "Shadows Into Light",
+  "body": "Outfit",
+  "ink": "1F2A1F",
+  "paper": "FFFBEA",
+  "alt": "EDF6CF",
+  "dark": "1D3B2A",
+  "accent": "F2622E",
+  "soft": "FFE1CC",
+  "muted": "5E6B57",
+  "line": "D7DCC4",
+  "note": "FFFFFF",
+  "ink2": "33402F",
+  "tape": [
+   255,
+   214,
+   170
+  ],
+  "grain": 5
+ },
+ "lavendel": {
+  "caps": "Syne",
+  "serif": "Libre Caslon Text",
+  "hand": "Indie Flower",
+  "body": "Figtree",
+  "ink": "221C33",
+  "paper": "F5F2FA",
+  "alt": "E6DEF6",
+  "dark": "2B2340",
+  "accent": "7A5CC7",
+  "soft": "E6DEF6",
+  "muted": "6A6380",
+  "line": "CFC6E2",
+  "note": "FFFFFF",
+  "ink2": "3A3150",
+  "tape": [
+   220,
+   205,
+   245
+  ],
+  "grain": 5
+ }
+}
